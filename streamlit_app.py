@@ -49,8 +49,8 @@ def boxplotter(column_str, field, data):
             ha="left", va="top", transform=ax.transAxes)
 
     # Add hover labels using Matplotlib annotations
-    for i, val in enumerate(filtered_data[column_str]):
-        ax.text(i, val, f'{val}', color='blue', ha='center', va='bottom', fontsize=8)
+    #for i, val in enumerate(filtered_data[column_str]):
+    #    ax.text(i, val, f'{val}', color='blue', ha='center', va='bottom', fontsize=8)
 
     # Display the plot using Streamlit's `st.pyplot`
     st.pyplot(fig)
