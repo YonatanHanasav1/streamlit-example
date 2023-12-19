@@ -47,7 +47,7 @@ def get_outliers(df,checked_column):
     print(df.head())
     df=df[df[checked_column]!=0]
     df[checked_column]=df[checked_column].astype(float)
-    histogrammer(checked_column,field=True,data = df)
+    #histogrammer(checked_column,field=True,data = df)
     boxplotter(checked_column,field=True,data = df)
 
 uploaded_file = st.file_uploader("Choose a file", type=["csv"])
