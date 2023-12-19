@@ -25,8 +25,8 @@ def boxplotter(column_str, field, data):
     fig.add_trace(go.Box(
         y=filtered_data[column_str],
         boxpoints="outliers",  # Show only outliers
-        marker=dict(color='blue'),
-        line=dict(color='blue'),
+        #marker=dict(color='blue'),
+        #line=dict(color='blue'),
         hoverinfo='y+text',  # Display y-axis (box) and text (hovertext)
     ))
 
