@@ -27,7 +27,7 @@ def boxplotter(column_str, field, data):
         boxpoints="outliers",  # Show only outliers
         marker=dict(color='blue'),
         line=dict(color='blue'),
-        hovertext=filtered_data[column_str].tolist()  # Set hover text to the values of labor_duration
+        hovertext=[f'{val:.1f}' for val in filtered_data[column_str].tolist()]  # Set hover text to only numeric values
     ))
 
     # Add a red line for the median
@@ -59,4 +59,4 @@ uploaded_file = st.file_uploader("Choose a file", type=["csv"])
 if uploaded_file:
     df = pd.read_csv(uploaded_file, low_memory=False) # by default read first sheet of the file
     if st.button('Find column outliers'):
-            boxplotter('labor_duration',True,data=df)
+        boxplotter('labor_duration', True, data=df)
