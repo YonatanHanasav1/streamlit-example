@@ -47,7 +47,7 @@ def boxplotter(column_str, field, data):
     )
 
     # Count outliers and get the values of the highest 5 outliers
-    outliers = box_trace.boxpoints[0]['outliers']
+    outliers = box_trace.boxpoints[0]
     num_outliers = len(outliers)
     highest_5_outliers = sorted(outliers)[-5:]
 
