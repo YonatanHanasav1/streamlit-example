@@ -50,7 +50,7 @@ def boxplotter(column_str, field, data):
     
     plt.show()
 
-def get_outliers(df,checked_column)
+def get_outliers(df,checked_column):
     print(df.head())
     checked_column = 'labor_duration'
     df=df[df[checked_column]!=0]
