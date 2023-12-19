@@ -78,6 +78,6 @@ uploaded_file = st.file_uploader("Choose a file", type=["csv"])
 if uploaded_file:
     df = pd.read_csv(uploaded_file, low_memory=False) # by default read first sheet of the file
     if st.button('Find column outliers'):
-            boxplotter(df,checked_column = 'labor_duration')
+            boxplotter(df,column_str = 'labor_duration')
 
 
