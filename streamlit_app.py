@@ -3,7 +3,7 @@ import seaborn as sns
 import pandas as pd
 import matplotlib.pyplot as plt
 
-def histogrammer(column_str, field, data, median_text=True, **kwargs):
+def histogrammer(column_str, field, data, median_text=True):
     if field:
         filtered_data = data[data['event_type'] == 'field']
         event_type_label = 'field'
@@ -13,7 +13,7 @@ def histogrammer(column_str, field, data, median_text=True, **kwargs):
     
     median = round(filtered_data[column_str].median(), 1)
     plt.figure(figsize=(8, 5))
-    ax = sns.histplot(x=filtered_data[column_str], **kwargs)
+    ax = sns.histplot(x=filtered_data[column_str],bins=20, color='blue')
     plt.axvline(median, color='red', linestyle='--')
     if median_text:
         ax.text(0.25, 0.85, f'median={median}', color='red',
@@ -22,6 +22,7 @@ def histogrammer(column_str, field, data, median_text=True, **kwargs):
         print('Median:', median)
     plt.xlabel(f'{event_type_label}_{column_str}')  # Add this line to include the x-axis label
     plt.show()
+    
 def boxplotter(column_str, field, data):
     if field:
         filtered_data = data[data['event_type'] == 'field']
