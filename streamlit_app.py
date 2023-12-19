@@ -24,7 +24,7 @@ def histogrammer(column_str, field, data, median_text=True):
         print('Median:', median)
     plt.xlabel(f'{event_type_label}_{column_str}')  # Add this line to include the x-axis label
     plt.show()
-    
+
 def boxplotter(column_str, field, data):
     if field:
         filtered_data = data[data['event_type'] == 'field']
@@ -38,9 +38,20 @@ def boxplotter(column_str, field, data):
     # Set Seaborn theme (you can choose different themes)
     sns.set_theme(style="whitegrid")
 
-    # Create a boxplot using seaborn
-    fig = px.box(filtered_data, x=column_str, points="all", labels={column_str: f'{event_type_label}_{column_str}'})
-    
+    # Create a boxplot using Plotly's graph_objects
+    fig = go.Figure()
+
+    # Add the box and whisker plot
+    fig.add_trace(go.Box(
+        y=filtered_data[column_str],
+        boxpoints="all",  # Show all points
+        jitter=0.3,  # Add some jitter for better visibility
+        pointpos=-1.8,  # Adjust the position of the points
+        boxmean='sd',  # Show mean and standard deviation
+        marker=dict(color='blue'),
+        line=dict(color='blue')
+    ))
+
     # Add a red line for the median
     fig.add_shape(
         go.layout.Shape(
@@ -56,8 +67,10 @@ def boxplotter(column_str, field, data):
     # Update layout for better aesthetics
     fig.update_layout(
         title=f"Boxplot for {event_type_label}_{column_str}",
+        xaxis=dict(title=f'{event_type_label}_{column_str}'),
         showlegend=False,
-        hovermode="closest"
+        hovermode="closest",
+        height=400
     )
 
     # Display the plot using Streamlit's `st.plotly_chart`
