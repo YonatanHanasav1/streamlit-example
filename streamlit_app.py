@@ -33,28 +33,33 @@ def boxplotter(column_str, field, data):
     
     median = round(filtered_data[column_str].median(), 1)
 
-    # Use Streamlit to display the boxplot
-    st.subheader(f"Boxplot for {event_type_label}_{column_str}")
-    
     # Set Seaborn theme (you can choose different themes)
     sns.set_theme(style="whitegrid")
 
     # Create a boxplot using seaborn
-    fig, ax = plt.subplots(figsize=(10, 2))
-    sns.boxplot(x=filtered_data[column_str], fliersize=1, ax=ax)
+    fig = px.box(filtered_data, x=column_str, points="all", labels={column_str: f'{event_type_label}_{column_str}'})
     
-    plt.xlabel(f'{event_type_label}_{column_str}')
+    # Add a red line for the median
+    fig.add_shape(
+        go.layout.Shape(
+            type='line',
+            x0=0,
+            x1=1,
+            y0=median,
+            y1=median,
+            line=dict(color='red', width=2)
+        )
+    )
 
-    ax.text(0.25, 0.85, f'median={median}', color='red',
-            ha="left", va="top", transform=ax.transAxes)
+    # Update layout for better aesthetics
+    fig.update_layout(
+        title=f"Boxplot for {event_type_label}_{column_str}",
+        showlegend=False,
+        hovermode="closest"
+    )
 
-    # Add hover labels using Matplotlib annotations
-    #for i, val in enumerate(filtered_data[column_str]):
-    #    ax.text(i, val, f'{val}', color='blue', ha='center', va='bottom', fontsize=8)
-
-    # Display the plot using Streamlit's `st.pyplot`
-    st.pyplot(fig)
-
+    # Display the plot using Streamlit's `st.plotly_chart`
+    st.plotly_chart(fig, theme="streamlit", use_container_width=True)
 
 def get_outliers(df,checked_column):
     print(df.head())
