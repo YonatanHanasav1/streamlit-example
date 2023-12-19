@@ -44,7 +44,6 @@ def boxplotter(column_str, field, data):
 
 def get_outliers(df,checked_column):
     print(df.head())
-    checked_column = 'labor_duration'
     df=df[df[checked_column]!=0]
     df[checked_column]=df[checked_column].astype(float)
     histogrammer(checked_column,field=True,data = df)
@@ -55,6 +54,6 @@ uploaded_file = st.file_uploader("Choose a file", type=["csv"])
 if uploaded_file:
     df = pd.read_csv(uploaded_file, low_memory=False) # by default read first sheet of the file
     if st.button('Find column outliers'):
-            get_outliers(df)
+            get_outliers(df,checked_column = 'labor_duration')
 
 
