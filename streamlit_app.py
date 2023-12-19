@@ -28,7 +28,6 @@ def boxplotter(column_str, field, data):
         marker=dict(color='blue'),
         line=dict(color='blue'),
         hoverinfo='y+text',  # Display y-axis (box) and text (hovertext)
-        hovertext=[f'{val:.1f}' for val in filtered_data[column_str].tolist()]  # Set hover text to only numeric values
     ))
 
     # Add a red line for the median
