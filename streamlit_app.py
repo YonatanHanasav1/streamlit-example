@@ -32,7 +32,11 @@ def boxplotter(column_str, field, data):
         event_type_label = 'remote'
     
     median = round(filtered_data[column_str].median(), 1)
+
+    # Use Streamlit to display the boxplot
+    st.subheader(f"Boxplot for {event_type_label}_{column_str}")
     
+    # Create a boxplot using seaborn
     plt.figure(figsize=(10, 2))
     ax = sns.boxplot(x=filtered_data[column_str], fliersize=1)
     
@@ -41,7 +45,9 @@ def boxplotter(column_str, field, data):
     ax.text(0.25, 0.85, f'median={median}', color='red',
             ha="left", va="top", transform=ax.transAxes)
     
-    plt.show()
+    # Display the plot using Streamlit's `st.pyplot`
+    st.pyplot()
+
 
 def get_outliers(df,checked_column):
     print(df.head())
