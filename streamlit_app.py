@@ -36,15 +36,22 @@ def boxplotter(column_str, field, data):
     # Use Streamlit to display the boxplot
     st.subheader(f"Boxplot for {event_type_label}_{column_str}")
     
+    # Set Seaborn theme (you can choose different themes)
+    sns.set_theme(style="whitegrid")
+
     # Create a boxplot using seaborn
     fig, ax = plt.subplots(figsize=(10, 2))
     sns.boxplot(x=filtered_data[column_str], fliersize=1, ax=ax)
     
-    plt.xlabel(f'{event_type_label}_{column_str}')  # Add this line to include the x-axis label
-    
+    plt.xlabel(f'{event_type_label}_{column_str}')
+
     ax.text(0.25, 0.85, f'median={median}', color='red',
             ha="left", va="top", transform=ax.transAxes)
-    
+
+    # Add hover labels using Matplotlib annotations
+    for i, val in enumerate(filtered_data[column_str]):
+        ax.text(i, val, f'{val}', color='blue', ha='center', va='bottom', fontsize=8)
+
     # Display the plot using Streamlit's `st.pyplot`
     st.pyplot(fig)
 
