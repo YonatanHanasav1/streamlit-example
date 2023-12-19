@@ -2,6 +2,7 @@ import streamlit as st
 import seaborn as sns
 import pandas as pd
 import matplotlib.pyplot as plt
+import plotly.express as px
 
 def histogrammer(column_str, field, data, median_text=True):
     if field:
