@@ -37,8 +37,8 @@ def boxplotter(column_str, field, data):
     st.subheader(f"Boxplot for {event_type_label}_{column_str}")
     
     # Create a boxplot using seaborn
-    plt.figure(figsize=(10, 2))
-    ax = sns.boxplot(x=filtered_data[column_str], fliersize=1)
+    fig, ax = plt.subplots(figsize=(10, 2))
+    sns.boxplot(x=filtered_data[column_str], fliersize=1, ax=ax)
     
     plt.xlabel(f'{event_type_label}_{column_str}')  # Add this line to include the x-axis label
     
@@ -46,7 +46,7 @@ def boxplotter(column_str, field, data):
             ha="left", va="top", transform=ax.transAxes)
     
     # Display the plot using Streamlit's `st.pyplot`
-    st.pyplot()
+    st.pyplot(fig)
 
 
 def get_outliers(df,checked_column):
