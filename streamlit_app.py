@@ -3,14 +3,6 @@ import seaborn as sns
 import pandas as pd
 import matplotlib.pyplot as plt
 
-
-uploaded_file = st.file_uploader("Choose a file", type=["csv"])
-
-if uploaded_file:
-    df = pd.read_csv(uploaded_file, low_memory=False) # by default read first sheet of the file
-    if st.button('Find column outliers'):
-            get_outliers(df)
-
 def histogrammer(column_str, field, data, median_text=True, **kwargs):
     if field:
         filtered_data = data[data['event_type'] == 'field']
@@ -57,3 +49,12 @@ def get_outliers(df,checked_column):
     df[checked_column]=df[checked_column].astype(float)
     histogrammer(checked_column,field=True,data = df)
     boxplotter(checked_column,field=True,data = df)
+
+uploaded_file = st.file_uploader("Choose a file", type=["csv"])
+
+if uploaded_file:
+    df = pd.read_csv(uploaded_file, low_memory=False) # by default read first sheet of the file
+    if st.button('Find column outliers'):
+            get_outliers(df)
+
+
