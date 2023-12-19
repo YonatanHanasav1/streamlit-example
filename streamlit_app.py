@@ -41,13 +41,10 @@ def boxplotter(column_str, field, data):
     # Create a boxplot using Plotly's graph_objects
     fig = go.Figure()
 
-    # Add the box and whisker plot
+    # Add the box and whisker plot with only outliers
     fig.add_trace(go.Box(
         y=filtered_data[column_str],
-        boxpoints="all",  # Show all points
-        jitter=0.3,  # Add some jitter for better visibility
-        pointpos=-1.8,  # Adjust the position of the points
-        boxmean='sd',  # Show mean and standard deviation
+        boxpoints="outliers",  # Show only outliers
         marker=dict(color='blue'),
         line=dict(color='blue')
     ))
@@ -75,13 +72,6 @@ def boxplotter(column_str, field, data):
 
     # Display the plot using Streamlit's `st.plotly_chart`
     st.plotly_chart(fig, theme="streamlit", use_container_width=True)
-
-def get_outliers(df,checked_column):
-    print(df.head())
-    df=df[df[checked_column]!=0]
-    df[checked_column]=df[checked_column].astype(float)
-    #histogrammer(checked_column,field=True,data = df)
-    boxplotter(checked_column,field=True,data = df)
 
 uploaded_file = st.file_uploader("Choose a file", type=["csv"])
 
