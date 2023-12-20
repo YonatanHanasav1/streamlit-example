@@ -5,61 +5,84 @@ import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 
 def boxplotter(column_str, field, data):
-    if field:
+    if field == 'field':
         filtered_data = data[data['event_type'] == 'field']
         event_type_label = 'field'
-    else:
+        st.write(f"Analyzing outliers of {event_type_label}_{column_str}:")
+    elif field == 'remote':
         filtered_data = data[data['event_type'] == 'remote']
         event_type_label = 'remote'
-    
-    median = round(filtered_data[column_str].median(), 1)
+        st.write(f"Analyzing outliers of {event_type_label}_{column_str}:")
+    elif field == '':
+        filtered_data = data[data['total_part_cost']>0]
+        st.write(f"Analyzing outliers of {column_str}:")
 
     # Create a boxplot using Plotly's graph_objects
     fig = go.Figure()
 
-    # Add the box and whisker plot with only outliers
+    # Add the box and whisker plot with colored median line
     box_trace = go.Box(
         y=filtered_data[column_str],
-        boxpoints="outliers",  # Show only outliers
+        line_color='white',  # Set the color of the median line
         hoverinfo='y+text',  # Display y-axis (box) and text (hovertext)
     )
     fig.add_trace(box_trace)
 
-    # Add a red line for the median
-    fig.add_shape(
-        go.layout.Shape(
-            type='line',
-            x0=0,
-            x1=1,
-            y0=median,
-            y1=median,
-            line=dict(color='red', width=2)
-        )
-    )
-
-    # Update layout for better aesthetics
-    fig.update_layout(
-        title=f"Boxplot for {event_type_label}_{column_str}",
-        xaxis=dict(title=f'{event_type_label}_{column_str}'),
-        showlegend=False,
-        hovermode="closest",
-        height=400
-    )
-
-    # Get the value of the most extreme outliers
-    highest_5_outliers = filtered_data[[column_str]].sort_values(by=column_str, ascending=False).head(5)
-    lowest_5_outliers = filtered_data[[column_str]].sort_values(by=column_str, ascending=True).head(5)
-
-    # Display the count of outliers and the values of the highest 5 outliers
-    st.write(f"Highest 5 outliers: {highest_5_outliers}")
-    st.write(f"Lowest 5 outliers: {lowest_5_outliers}")
-
     # Display the plot using Streamlit's `st.plotly_chart`
     st.plotly_chart(fig, theme="streamlit", use_container_width=True)
+
+    # Get the value of the most extreme outliers
+    highest_5_outliers = filtered_data[[column_str, 'investigation_id','part_name','part_id']].sort_values(by=column_str, ascending=False).head(5)
+    lowest_5_outliers = filtered_data[[column_str, 'investigation_id','part_name','part_id']].sort_values(by=column_str, ascending=True).head(5)
+
+    # Display the tables side by side with matching headlines
+    col1, col2 = st.columns(2)
+
+    if field == 'field' or field == 'remote':
+        with col1:
+            st.write(f"Highest 5 outliers for {event_type_label}_{column_str}:")
+            formatted_highest = highest_5_outliers.reset_index(drop=True)
+            formatted_highest.index += 1  # Reset index starting from 1
+            formatted_highest[column_str] = formatted_highest[column_str].apply(lambda x: str(x).replace('(', '').replace(')', ''))
+            formatted_highest['Investigation ID'] = formatted_highest['investigation_id'].apply(lambda x: str(x))
+            formatted_highest = formatted_highest[['Investigation ID', column_str]]
+            st.table(formatted_highest)
+
+        with col2:
+            st.write(f"Lowest 5 outliers for {event_type_label}_{column_str}:")
+            formatted_lowest = lowest_5_outliers.reset_index(drop=True)
+            formatted_lowest.index += 1  # Reset index starting from 1
+            formatted_lowest[column_str] = formatted_lowest[column_str].apply(lambda x: str(x).replace('(', '').replace(')', ''))
+            formatted_lowest['Investigation ID'] = formatted_lowest['investigation_id'].apply(lambda x: str(x))
+            formatted_lowest = formatted_lowest[['Investigation ID', column_str]]
+            st.table(formatted_lowest)
+    else:
+        with col1:
+            st.write(f"Highest 5 outliers for {column_str}:")
+            formatted_highest = highest_5_outliers.reset_index(drop=True)
+            formatted_highest.index += 1  # Reset index starting from 1
+            formatted_highest[column_str] = formatted_highest[column_str].apply(lambda x: str(x).replace('(', '').replace(')', ''))
+            formatted_highest['Part ID'] = formatted_highest['part_id'].apply(lambda x: str(x))
+            formatted_highest['Part Description'] = formatted_highest['part_name'].apply(lambda x: str(x))
+            formatted_highest = formatted_highest[['Part ID','Part Description', column_str]]
+            st.table(formatted_highest)
+
+        with col2:
+            st.write(f"Lowest 5 outliers for {column_str}:")
+            formatted_lowest = lowest_5_outliers.reset_index(drop=True)
+            formatted_lowest.index += 1  # Reset index starting from 1
+            formatted_lowest[column_str] = formatted_lowest[column_str].apply(lambda x: str(x).replace('(', '').replace(')', ''))
+            formatted_lowest['Part ID'] = formatted_lowest['part_id'].apply(lambda x: str(x))
+            formatted_lowest['Part Description'] = formatted_lowest['part_name'].apply(lambda x: str(x))
+            formatted_lowest = formatted_lowest[['Part ID','Part Description', column_str]]
+            st.table(formatted_lowest)
+
 
 uploaded_file = st.file_uploader("Choose a file", type=["csv"])
 
 if uploaded_file:
     df = pd.read_csv(uploaded_file, low_memory=False) # by default read the first sheet of the file
     if st.button('Find column outliers'):
-        boxplotter('labor_duration', True, data=df)
+        boxplotter('labor_duration', 'field', data=df)
+        boxplotter('labor_duration', 'remote', data=df)
+        boxplotter('total_part_cost', '', data=df)
