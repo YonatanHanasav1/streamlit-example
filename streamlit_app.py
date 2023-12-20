@@ -47,8 +47,8 @@ def boxplotter(column_str, field, data):
     )
 
     # Get the value of the most extreme outliers
-    highest_5_outliers = filtered_data.sort_values(by=column_str, ascending=False).head(5)
-    lowest_5_outliers = filtered_data.sort_values(by=column_str, ascending=True).head(5)
+    highest_5_outliers = filtered_data[[column_str]].sort_values(by=column_str, ascending=False).head(5)
+    lowest_5_outliers = filtered_data[[column_str]].sort_values(by=column_str, ascending=True).head(5)
 
     # Display the count of outliers and the values of the highest 5 outliers
     st.write(f"Highest 5 outliers: {highest_5_outliers}")
