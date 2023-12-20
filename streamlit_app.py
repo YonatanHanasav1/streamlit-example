@@ -36,7 +36,7 @@ def boxplotter(column_str, data):
         st.subheader(f"Analyzing outliers of {column_str}:")
 
     # Create boxplot using Plotly Express
-    plot = px.box(data_frame=filtered_data, y=column_str, x='event_type')
+    plot = px.box(data_frame=filtered_data, y=column_str)
 
     # Display the plot using Streamlit's `st.plotly_chart`
     st.plotly_chart(plot, theme="streamlit", use_container_width=True)
@@ -66,14 +66,13 @@ def boxplotter(column_str, data):
         elif column_str == 'total_part_cost':
             format_and_display_table(lowest_5_outliers, title_text, column_str, 'part_id', 'part_name')
         
-
 columns = ['field_labor_duration', 'remote_labor_duration', 'part_cost']
-
 
 st.header('Outliers Analysis')
 st.subheader('Getting Started')
-st.write('To start analysis upload your data and select the columns wanted.')
-uploaded_file = st.sidebar.file_uploader("Please load sc_events file", type=["csv"])
+st.write('To start analysis upload your data and select the wanted columns.')
+
+uploaded_file = st.sidebar.file_uploader("Please load a sc_events file", type=["csv"])
 if uploaded_file:
     df = pd.read_csv(uploaded_file, low_memory=False)  # by default read the first sheet of the file
     data = df
