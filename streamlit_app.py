@@ -46,14 +46,13 @@ def boxplotter(column_str, field, data):
         height=400
     )
 
-    # Count outliers and get the values of the highest 5 outliers
-    outliers = box_trace.boxpoints[0]
-    num_outliers = len(outliers)
-    highest_5_outliers = sorted(outliers)[-5:]
+    # Get the value of the most extreme outliers
+    highest_5_outliers = filtered_data.sort_values(by=column_str, ascending=False).head(5)
+    lowest_5_outliers = filtered_data.sort_values(by=column_str, ascending=True).head(5)
 
     # Display the count of outliers and the values of the highest 5 outliers
-    st.write(f"Number of outliers: {num_outliers}")
     st.write(f"Highest 5 outliers: {highest_5_outliers}")
+    st.write(f"Lowest 5 outliers: {lowest_5_outliers}")
 
     # Display the plot using Streamlit's `st.plotly_chart`
     st.plotly_chart(fig, theme="streamlit", use_container_width=True)
