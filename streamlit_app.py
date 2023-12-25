@@ -76,7 +76,32 @@ def boxplotter(column_str, data):
         title_text = f"Lowest 5 outliers for {event_type_label}_{column_str}:" if column_str == 'labor_duration' else f"Lowest 5 outliers for {column_str}:"
         st.write(title_text)
         format_and_display_table(lowest_5_outliers, title_text, column_str, 'investigation_id')
-        
+
+def histogram(column_str, data):
+    if column_str == 'field_labor_duration':
+        column_str = 'labor_duration'
+        filtered_data = data[data['event_type'] == 'field']
+        filtered_data = filtered_data[filtered_data[column_str]>0]
+        event_type_label = 'field'
+        st.subheader(f"Histogram of {event_type_label}_{column_str}:")
+    elif column_str == 'remote_labor_duration':
+        column_str = 'labor_duration'
+        filtered_data = data[data['event_type'] == 'remote']
+        filtered_data = filtered_data[filtered_data[column_str]>0]
+        event_type_label = 'remote'
+        st.subheader(f"Histogram of {event_type_label}_{column_str}:")
+    elif column_str == 'part_cost':
+        column_str = 'total_part_cost'
+        filtered_data = data[data['total_part_cost'] > 0]
+        st.subheader(f"Histogram of {column_str}:")
+    else:
+        filtered_data = data[['investigation_id',column_str]]
+        st.subheader(f"Histogram of {column_str}:")
+    # Create histogram using Plotly Express
+    plot = px.histogram(data_frame=filtered_data, x=column_str, nbins=30)
+    # Display the plot using Streamlit's `st.plotly_chart`
+    st.plotly_chart(plot, theme="streamlit", use_container_width=True)
+
 columns = ['field_labor_duration', 'remote_labor_duration', 'total_labor_cost', 'part_cost', 'total_cost']
 
 explanation = '''In a box plot, the upper and lower fences are used to identify potential outliers in the data.
@@ -110,7 +135,12 @@ if uploaded_file:
         for line in lines:
             st.write(line)
 
-    feature_selection = st.sidebar.multiselect(label="Select columns to analyze", options=columns)
-    if feature_selection:
-        for col in feature_selection:
+    boxplot_selection = st.sidebar.multiselect(label="Select columns to create box plot", options=columns)
+    if boxplot_selection:
+        for col in boxplot_selection:
             boxplotter(col, data=df)
+    
+    histogram_selection = st.sidebar.multiselect(label="Select columns to create histogram", options=columns)
+    if histogram_selection:
+        for col in histogram_selection:
+            histogram(col, data=df)
