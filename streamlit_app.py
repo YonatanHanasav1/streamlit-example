@@ -122,19 +122,8 @@ if uploaded_file:
     df = pd.read_csv(uploaded_file, low_memory=False)  # by default read the first sheet of the file
     data = df
     st.sidebar.title("Settings")
-    check_box1 = st.sidebar.checkbox(label="Display dataset sample")
     check_box2 = st.sidebar.checkbox(label="Display IQR outlier finding method explanation")
-
-    if check_box1:
-        st.subheader('Data Sample')
-        st.write(data.head(100))
-
-    if check_box2:
-        st.subheader('IQR outlier finding method explanation')
-        lines = explanation.split('\n')
-        for line in lines:
-            st.write(line)
-
+    check_box1 = st.sidebar.checkbox(label="Display dataset sample")
     boxplot_selection = st.sidebar.multiselect(label="Select columns to create box plot", options=columns)
     if boxplot_selection:
         for col in boxplot_selection:
@@ -144,3 +133,63 @@ if uploaded_file:
     if histogram_selection:
         for col in histogram_selection:
             histogram(col, data=df)
+    # Checkbox for maximum value input
+    st.sidebar.title("Filter DataFrame by Maximum Value and Download it")
+    
+    check_box3 = st.sidebar.checkbox(label="Display filtered dataset sample")
+    max_value_column = st.sidebar.selectbox("Select a column to set maximum value", options=columns)
+    max_value_input = st.sidebar.number_input(f"Enter the maximum value for chosen column", min_value=0.0)
+    
+    if max_value_column == 'field_labor_duration':
+        max_value_column = 'labor_duration'
+        event_type_filter = 'field'
+        if check_box3:
+            st.subheader(f"Filtered DataFrame (Values <= {max_value_input}), sorted by {max_value_column} (descending) for field events:")
+    elif max_value_column == 'remote_labor_duration':
+        max_value_column = 'labor_duration'
+        event_type_filter = 'remote'
+        if check_box3:
+            st.subheader(f"Filtered DataFrame (Values <= {max_value_input}), sorted by {max_value_column} (descending) for remote events:")
+    elif max_value_column == 'part_cost':
+        max_value_column = 'total_part_cost'
+        event_type_filter = None  # No event type filter for 'part_cost'
+        if check_box3:
+            st.subheader(f"Filtered DataFrame (Values <= {max_value_input}), sorted by {max_value_column} (descending):")
+    else:
+        event_type_filter = None  # No event type filter for custom columns
+        filtered_df = df[['investigation_id', max_value_column]]
+        if check_box3:
+            st.subheader(f"Filtered DataFrame (Values <= {max_value_input}), sorted by {max_value_column} (descending):")
+
+    if event_type_filter:
+        filtered_df = df[df['event_type'] == event_type_filter]
+    else:
+        filtered_df = df
+    # Filter out outliers
+    filtered_df = filtered_df[filtered_df[max_value_column] <= max_value_input]    
+    # Sort the filtered DataFrame by the specified column in descending order
+    filtered_df = filtered_df.sort_values(by=max_value_column, ascending=False)
+
+    if check_box3:
+        # Display filtered DataFrame
+        st.write(filtered_df[[max_value_column] + [col for col in filtered_df.columns if col != max_value_column]].head(100))
+        
+    # Download filtered DataFrame as CSV
+    csv_filename = f"sc_events_filtered.csv"
+    csv_data = filtered_df.to_csv(index=False)
+    # Provide the CSV data as a file-like object to the download_button
+    st.sidebar.download_button(
+        label=f"Download {csv_filename}",
+        data=csv_data,
+        file_name=csv_filename,
+        key=f"download_button_{max_value_input}")
+        
+    if check_box1:
+        st.subheader('Data Sample')
+        st.write(data.head(100))
+
+    if check_box2:
+        st.subheader('IQR outlier finding method explanation')
+        lines = explanation.split('\n')
+        for line in lines:
+            st.write(line)
