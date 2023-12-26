@@ -124,6 +124,8 @@ if uploaded_file:
     st.sidebar.title("Settings")
     check_box2 = st.sidebar.checkbox(label="Display IQR outlier finding method explanation")
     check_box1 = st.sidebar.checkbox(label="Display dataset sample")
+
+    st.sidebar.title("Plots")
     boxplot_selection = st.sidebar.multiselect(label="Select columns to create box plot", options=columns)
     if boxplot_selection:
         for col in boxplot_selection:
@@ -134,55 +136,74 @@ if uploaded_file:
         for col in histogram_selection:
             histogram(col, data=df)
     # Checkbox for maximum value input
-    st.sidebar.title("Filter DataFrame by Maximum Value and Download it")
-    
-    check_box3 = st.sidebar.checkbox(label="Display filtered dataset sample")
-    max_value_column = st.sidebar.selectbox("Select a column to set maximum value", options=columns)
-    max_value_input = st.sidebar.number_input(f"Enter the maximum value for chosen column", min_value=0.0)
-    
-    if max_value_column == 'field_labor_duration':
-        max_value_column = 'labor_duration'
-        event_type_filter = 'field'
-        if check_box3:
-            st.subheader(f"Filtered DataFrame (Values <= {max_value_input}), sorted by {max_value_column} (descending) for field events:")
-    elif max_value_column == 'remote_labor_duration':
-        max_value_column = 'labor_duration'
-        event_type_filter = 'remote'
-        if check_box3:
-            st.subheader(f"Filtered DataFrame (Values <= {max_value_input}), sorted by {max_value_column} (descending) for remote events:")
-    elif max_value_column == 'part_cost':
-        max_value_column = 'total_part_cost'
-        event_type_filter = None  # No event type filter for 'part_cost'
-        if check_box3:
-            st.subheader(f"Filtered DataFrame (Values <= {max_value_input}), sorted by {max_value_column} (descending):")
-    else:
-        event_type_filter = None  # No event type filter for custom columns
-        filtered_df = df[['investigation_id', max_value_column]]
-        if check_box3:
-            st.subheader(f"Filtered DataFrame (Values <= {max_value_input}), sorted by {max_value_column} (descending):")
+    st.sidebar.title("Filter Data")
+    filter_columns = st.sidebar.multiselect("Select columns for filtering", options=columns)
 
-    if event_type_filter:
-        filtered_df = df[df['event_type'] == event_type_filter]
-    else:
-        filtered_df = df
-    # Filter out outliers
-    filtered_df = filtered_df[filtered_df[max_value_column] <= max_value_input]    
-    # Sort the filtered DataFrame by the specified column in descending order
-    filtered_df = filtered_df.sort_values(by=max_value_column, ascending=False)
+    # Dictionary to store selected column-value pairs
+    filter_values = {}
 
-    if check_box3:
-        # Display filtered DataFrame
-        st.write(filtered_df[[max_value_column] + [col for col in filtered_df.columns if col != max_value_column]].head(100))
-        
-    # Download filtered DataFrame as CSV
-    csv_filename = f"sc_events_filtered.csv"
+    # Display input elements for each selected column
+    for col in filter_columns:
+        filter_values[col] = st.sidebar.number_input(f"Enter maximum value for {col}", min_value=0.0)
+
+    # Display selected columns and their respective values
+    st.sidebar.subheader("Selected Columns and Values:")
+    for col, value in filter_values.items():
+        st.sidebar.write(f"{col}: {value}")
+
+    # Apply filtering logic for selected columns and values
+    filtered_df = df.copy()
+    sorted_columns = []  # Initialize sorted_column list outside the loop
+
+    for col, value in filter_values.items():
+        if col == 'field_labor_duration':
+            col = 'labor_duration'
+            event_type_filter = 'field'
+        elif col == 'remote_labor_duration':
+            col = 'labor_duration'
+            event_type_filter = 'remote'
+        elif col == 'part_cost':
+            col = 'total_part_cost'
+            event_type_filter = None
+        else:
+            event_type_filter = None
+
+        if event_type_filter:
+            # Include rows where ['event_type'] is not equal to event_type_filter
+            # OR where ['event_type'] is equal to event_type_filter and [col] is less than or equal to value
+            filtered_df = filtered_df[((filtered_df['event_type'] != event_type_filter) | ((filtered_df['event_type'] == event_type_filter) & (filtered_df[col] <= value)))]
+
+        else:
+            filtered_df = filtered_df[filtered_df[col] <= value]
+
+        # Update sorted_column inside the loop
+        sorted_columns.append(col)
+        sorted_columns = set(sorted_columns)
+        sorted_columns = list(sorted_columns)
+
+   # Update selected_columns outside the loop
+    all_columns = sorted_columns + [col for col in filtered_df.columns if col not in sorted_columns]
+
+    # Sort the filtered DataFrame based on the last selected column in descending order
+    if len(sorted_columns) != 0 and filter_columns:
+        filtered_df = filtered_df.sort_values(by=sorted_columns, ascending=False)
+        # Display the filtered DataFrame with selected columns appearing first
+        st.subheader("Filtered DataFrame:")
+        st.write(filtered_df[all_columns].head(100))
+
+    # Download button for filtered DataFrame as CSV
+    csv_filename = f"sc_events_filtered_"
+    csv_filename += "_".join([f"{col}_{value}" for col, value in filter_values.items()])
+    csv_filename += ".csv"
     csv_data = filtered_df.to_csv(index=False)
-    # Provide the CSV data as a file-like object to the download_button
+
+    download_button_key = "_".join([f"{col}_{value}" for col, value in filter_values.items()])
+
     st.sidebar.download_button(
         label=f"Download {csv_filename}",
         data=csv_data,
         file_name=csv_filename,
-        key=f"download_button_{max_value_input}")
+        key=f"download_button_{download_button_key}")
         
     if check_box1:
         st.subheader('Data Sample')
