@@ -127,24 +127,11 @@ if uploaded_file:
         modified_col, event_type_filter = modify_column_names(col)
         if modified_col == 'labor_duration':
             filter_values[col] = st.sidebar.number_input(f"Enter maximum value for {event_type_filter}_{modified_col}", min_value=0.0)
-        else:
-            filter_values[col] = st.sidebar.number_input(f"Enter maximum value for {modified_col}", min_value=0.0)
-
-    # Display selected columns and values
-    st.sidebar.subheader("Selected Columns and Values:")
-    for col in filter_columns:
-        modified_col, event_type_filter = modify_column_names(col)  # Extract modified column name
-        selected_value = filter_values.get(col, 0)  # Get the selected value for the original column
-        if modified_col == 'labor_duration':
-            st.sidebar.write(f"{event_type_filter}_{modified_col}: {selected_value}")
-        else:
-            st.sidebar.write(f"{modified_col}: {selected_value}")
-        # Calculate and display the filtered rows
-        if modified_col == 'labor_duration':
             filtered_count = df[(df[modified_col] > filter_values[col]) & (df['event_type'] == event_type_filter)].shape[0]
         else:
+            filter_values[col] = st.sidebar.number_input(f"Enter maximum value for {modified_col}", min_value=0.0)
             filtered_count = df[df[modified_col] > filter_values[col]].shape[0]
-        st.sidebar.write(f"Filtered rows: {filtered_count}")
+        st.sidebar.write(f"Filtered out rows: {filtered_count}")
 
     filtered_df = df.copy()
     sorted_columns = []
@@ -167,9 +154,10 @@ if uploaded_file:
         st.subheader("Filtered DataFrame:")
         st.write(filtered_df[all_columns].head(100))
         # Display the total filtered percentage above the download file button
-        total_filtered_percentage = ((total_rows - filtered_df.shape[0]) / total_rows) * 100
-        st.sidebar.subheader("Total Filtered Percentage:")
-        st.sidebar.write(f"{total_filtered_percentage:.2f}% of rows were filtered out")
+        total_filtered_percentage = round(((total_rows - filtered_df.shape[0]) / total_rows) * 100,2)
+        st.sidebar.subheader("Total Filtered:")
+        st.sidebar.write(f"{(total_rows - filtered_df.shape[0])} rows were filtered out")
+        st.sidebar.write(f"{total_filtered_percentage}% of total rows were filtered out")
 
     csv_filename = f"sc_events_filtered_"
     csv_filename += "_".join([f"{col}_{value}" for col, value in filter_values.items()])
