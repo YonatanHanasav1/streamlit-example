@@ -5,9 +5,19 @@ import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 import plotly.express as px
 
+def modify_column_names(column_str):
+    if column_str == 'field_labor_duration':
+        return 'labor_duration', 'field'
+    elif column_str == 'remote_labor_duration':
+        return 'labor_duration', 'remote'
+    elif column_str == 'part_cost':
+        return 'total_part_cost', None
+    else:
+        return column_str, None
+
 def format_and_display_table(data, title, column_str, id_column):
     formatted_table = data.reset_index(drop=True)
-    formatted_table.index += 1  # Reset index starting from 1
+    formatted_table.index += 1
     formatted_table[column_str] = formatted_table[column_str].round(2)
     formatted_table[column_str] = formatted_table[column_str].astype(str).str.replace(r'[\(\)]', '')
     formatted_table[id_column] = formatted_table[id_column].astype(str)
@@ -15,91 +25,62 @@ def format_and_display_table(data, title, column_str, id_column):
     st.table(formatted_table)
 
 def boxplotter(column_str, data):
-    if column_str == 'field_labor_duration':
-        column_str = 'labor_duration'
-        filtered_data = data[data['event_type'] == 'field']
-        filtered_data = filtered_data[filtered_data[column_str]>0]
-        event_type_label = 'field'
-        st.subheader(f"Box Plot of {event_type_label}_{column_str}:")
-    elif column_str == 'remote_labor_duration':
-        column_str = 'labor_duration'
-        filtered_data = data[data['event_type'] == 'remote']
-        filtered_data = filtered_data[filtered_data[column_str]>0]
-        event_type_label = 'remote'
-        st.subheader(f"Box Plot of {event_type_label}_{column_str}:")
-    elif column_str == 'part_cost':
-        column_str = 'total_part_cost'
-        filtered_data = data[data['total_part_cost'] > 0]
-        st.subheader(f"Box Plot of {column_str}:")
-    else:
-        filtered_data = data[['investigation_id',column_str]]
-        st.subheader(f"Box Plot of {column_str}:")
-
-    st.write("Data points showing on plot are the values outside of fences")
-    # Create boxplot using Plotly Express
-    plot = px.box(data_frame=filtered_data, y=column_str)
-    # Display the plot using Streamlit's `st.plotly_chart`
-    st.plotly_chart(plot, theme="streamlit", use_container_width=True)
+    modified_col, event_type_filter = modify_column_names(column_str)
     
-    # Calculate quartiles, IQR and median
-    median = filtered_data[column_str].median()
-    Q1 = filtered_data[column_str].quantile(0.25)
-    Q3 = filtered_data[column_str].quantile(0.75)
+    filtered_data = data
+    if event_type_filter:
+        filtered_data = data[data['event_type'] == event_type_filter]
+    
+    if modified_col == 'labor_duration':
+        filtered_data = filtered_data[filtered_data[modified_col] > 0]
+    
+    st.subheader(f"Box Plot of {event_type_filter}_{modified_col}:")
+    
+    st.write("Data points showing on plot are the values outside of fences")
+    plot = px.box(data_frame=filtered_data, y=modified_col)
+    st.plotly_chart(plot, theme="streamlit", use_container_width=True)
+
+    median = filtered_data[modified_col].median()
+    Q1 = filtered_data[modified_col].quantile(0.25)
+    Q3 = filtered_data[modified_col].quantile(0.75)
     IQR = Q3 - Q1
-    # Calculate upper and lower fences
-    lower_fence = Q1 - 1.5 * IQR
-    if lower_fence < 0:
-        lower_fence = 0
+    lower_fence = max(Q1 - 1.5 * IQR, 0)
     upper_fence = Q3 + 1.5 * IQR
-    # Create a DataFrame for upper, lower fences, and median
+    
     fences_median_df = pd.DataFrame({
         'Metric': ['Upper Fence', 'Lower Fence', 'Median'],
         'Value': [upper_fence, lower_fence, median]
     })
     fences_median_df['Value'] = fences_median_df['Value'].round(2)
-    # Display the table for upper, lower fences, and median
-    st.table(fences_median_df)    
+    st.table(fences_median_df)
 
-    # Get the value of the most extreme outliers
-    highest_5_outliers = filtered_data[[column_str, 'investigation_id']].sort_values(by=column_str, ascending=False).head(5)
-    lowest_5_outliers = filtered_data[[column_str, 'investigation_id']].sort_values(by=column_str, ascending=True).head(5)
+    highest_5_outliers = filtered_data[[modified_col, 'investigation_id']].sort_values(by=modified_col, ascending=False).head(5)
+    lowest_5_outliers = filtered_data[[modified_col, 'investigation_id']].sort_values(by=modified_col, ascending=True).head(5)
 
-    # Display the tables side by side with matching headlines
     col1, col2 = st.columns(2)
 
     with col1:
-        title_text = f"Highest 5 outliers for {event_type_label}_{column_str}:" if column_str == 'labor_duration' else f"Highest 5 outliers for {column_str}:"
+        title_text = f"Highest 5 outliers for {event_type_filter}_{modified_col}:" if modified_col == 'labor_duration' else f"Highest 5 outliers for {modified_col}:"
         st.write(title_text)
-        format_and_display_table(highest_5_outliers, title_text, column_str, 'investigation_id')
+        format_and_display_table(highest_5_outliers, title_text, modified_col, 'investigation_id')
 
     with col2:
-        title_text = f"Lowest 5 outliers for {event_type_label}_{column_str}:" if column_str == 'labor_duration' else f"Lowest 5 outliers for {column_str}:"
+        title_text = f"Lowest 5 outliers for {event_type_filter}_{modified_col}:" if modified_col == 'labor_duration' else f"Lowest 5 outliers for {modified_col}:"
         st.write(title_text)
-        format_and_display_table(lowest_5_outliers, title_text, column_str, 'investigation_id')
+        format_and_display_table(lowest_5_outliers, title_text, modified_col, 'investigation_id')
 
 def histogram(column_str, data):
-    if column_str == 'field_labor_duration':
-        column_str = 'labor_duration'
-        filtered_data = data[data['event_type'] == 'field']
-        filtered_data = filtered_data[filtered_data[column_str]>0]
-        event_type_label = 'field'
-        st.subheader(f"Histogram of {event_type_label}_{column_str}:")
-    elif column_str == 'remote_labor_duration':
-        column_str = 'labor_duration'
-        filtered_data = data[data['event_type'] == 'remote']
-        filtered_data = filtered_data[filtered_data[column_str]>0]
-        event_type_label = 'remote'
-        st.subheader(f"Histogram of {event_type_label}_{column_str}:")
-    elif column_str == 'part_cost':
-        column_str = 'total_part_cost'
-        filtered_data = data[data['total_part_cost'] > 0]
-        st.subheader(f"Histogram of {column_str}:")
-    else:
-        filtered_data = data[['investigation_id',column_str]]
-        st.subheader(f"Histogram of {column_str}:")
-    # Create histogram using Plotly Express
-    plot = px.histogram(data_frame=filtered_data, x=column_str, nbins=30)
-    # Display the plot using Streamlit's `st.plotly_chart`
+    modified_col, event_type_filter = modify_column_names(column_str)
+
+    filtered_data = data
+    if event_type_filter:
+        filtered_data = data[data['event_type'] == event_type_filter]
+    
+    if modified_col == 'labor_duration':
+        filtered_data = filtered_data[filtered_data[modified_col] > 0]
+
+    st.subheader(f"Histogram of {event_type_filter}_{modified_col}:")
+    plot = px.histogram(data_frame=filtered_data, x=modified_col, nbins=30)
     st.plotly_chart(plot, theme="streamlit", use_container_width=True)
 
 columns = ['field_labor_duration', 'remote_labor_duration', 'total_labor_cost', 'part_cost', 'total_cost']
@@ -119,7 +100,8 @@ if not uploaded_file:
     st.write('To start analysis upload your data and select the wanted columns.')
 
 if uploaded_file:
-    df = pd.read_csv(uploaded_file, low_memory=False)  # by default read the first sheet of the file
+    df = pd.read_csv(uploaded_file, low_memory=False)
+    total_rows = df.shape[0]
     data = df
     st.sidebar.title("Settings")
     check_box2 = st.sidebar.checkbox(label="Display IQR outlier finding method explanation")
@@ -135,63 +117,60 @@ if uploaded_file:
     if histogram_selection:
         for col in histogram_selection:
             histogram(col, data=df)
-    # Checkbox for maximum value input
+    
     st.sidebar.title("Filter Data")
     filter_columns = st.sidebar.multiselect("Select columns for filtering", options=columns)
-
-    # Dictionary to store selected column-value pairs
     filter_values = {}
 
-    # Display input elements for each selected column
+    # Display selected columns and values for each selected column
     for col in filter_columns:
-        filter_values[col] = st.sidebar.number_input(f"Enter maximum value for {col}", min_value=0.0)
+        modified_col, event_type_filter = modify_column_names(col)
+        if modified_col == 'labor_duration':
+            filter_values[col] = st.sidebar.number_input(f"Enter maximum value for {event_type_filter}_{modified_col}", min_value=0.0)
+        else:
+            filter_values[col] = st.sidebar.number_input(f"Enter maximum value for {modified_col}", min_value=0.0)
 
-    # Display selected columns and their respective values
+    # Display selected columns and values
     st.sidebar.subheader("Selected Columns and Values:")
-    for col, value in filter_values.items():
-        st.sidebar.write(f"{col}: {value}")
+    for col in filter_columns:
+        modified_col, event_type_filter = modify_column_names(col)  # Extract modified column name
+        selected_value = filter_values.get(col, 0)  # Get the selected value for the original column
+        if modified_col == 'labor_duration':
+            st.sidebar.write(f"{event_type_filter}_{modified_col}: {selected_value}")
+        else:
+            st.sidebar.write(f"{modified_col}: {selected_value}")
+        # Calculate and display the filtered rows
+        if modified_col == 'labor_duration':
+            filtered_count = df[(df[modified_col] > filter_values[col]) & (df['event_type'] == event_type_filter)].shape[0]
+        else:
+            filtered_count = df[df[modified_col] > filter_values[col]].shape[0]
+        st.sidebar.write(f"Filtered rows: {filtered_count}")
 
-    # Apply filtering logic for selected columns and values
     filtered_df = df.copy()
-    sorted_columns = []  # Initialize sorted_column list outside the loop
+    sorted_columns = []
 
     for col, value in filter_values.items():
-        if col == 'field_labor_duration':
-            col = 'labor_duration'
-            event_type_filter = 'field'
-        elif col == 'remote_labor_duration':
-            col = 'labor_duration'
-            event_type_filter = 'remote'
-        elif col == 'part_cost':
-            col = 'total_part_cost'
-            event_type_filter = None
-        else:
-            event_type_filter = None
-
+        modified_col, event_type_filter = modify_column_names(col)
         if event_type_filter:
-            # Include rows where ['event_type'] is not equal to event_type_filter
-            # OR where ['event_type'] is equal to event_type_filter and [col] is less than or equal to value
-            filtered_df = filtered_df[((filtered_df['event_type'] != event_type_filter) | ((filtered_df['event_type'] == event_type_filter) & (filtered_df[col] <= value)))]
-
+            filtered_df = filtered_df[((filtered_df['event_type'] != event_type_filter) | ((filtered_df['event_type'] == event_type_filter) & (filtered_df[modified_col] <= value)))]
         else:
-            filtered_df = filtered_df[filtered_df[col] <= value]
+            filtered_df = filtered_df[filtered_df[modified_col] <= value]
 
-        # Update sorted_column inside the loop
-        sorted_columns.append(col)
+        sorted_columns.append(modified_col)
         sorted_columns = set(sorted_columns)
         sorted_columns = list(sorted_columns)
 
-   # Update selected_columns outside the loop
     all_columns = sorted_columns + [col for col in filtered_df.columns if col not in sorted_columns]
 
-    # Sort the filtered DataFrame based on the last selected column in descending order
     if len(sorted_columns) != 0 and filter_columns:
         filtered_df = filtered_df.sort_values(by=sorted_columns, ascending=False)
-        # Display the filtered DataFrame with selected columns appearing first
         st.subheader("Filtered DataFrame:")
         st.write(filtered_df[all_columns].head(100))
+        # Display the total filtered percentage above the download file button
+        total_filtered_percentage = ((total_rows - filtered_df.shape[0]) / total_rows) * 100
+        st.sidebar.subheader("Total Filtered Percentage:")
+        st.sidebar.write(f"{total_filtered_percentage:.2f}% of rows were filtered out")
 
-    # Download button for filtered DataFrame as CSV
     csv_filename = f"sc_events_filtered_"
     csv_filename += "_".join([f"{col}_{value}" for col, value in filter_values.items()])
     csv_filename += ".csv"
