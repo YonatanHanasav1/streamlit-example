@@ -121,7 +121,7 @@ if uploaded_file:
             histogram(col, data=df)
     
     st.sidebar.title("Filter Data")
-    filter_columns = st.sidebar.multiselect("Select columns for filtering", options=columns)
+    filter_columns = st.sidebar.multiselect("Select columns for manually filtering", options=columns)
     filter_values = {}
 
     # Display selected columns and values for each selected column
@@ -161,7 +161,119 @@ if uploaded_file:
         st.sidebar.write(f"{(total_rows - filtered_df.shape[0])} rows were filtered out")
         st.sidebar.write(f"{total_filtered_percentage}% of total rows were filtered out")
 
+    automatic_filter_columns = st.sidebar.multiselect("Select columns for automatic filtering", options=columns)
+    automatic_filter_values = {}
+
+    for col in automatic_filter_columns:
+        automatic_filter_values[col] = None
+
+    # Display buttons for automatic filtering actions
+    if automatic_filter_columns:
+        st.subheader("Automatic Filtering Information:")
+        info_table_data = []
+
+        for col in automatic_filter_columns:
+            modified_col, event_type_filter = modify_column_names(col)
+            filtered_df_copy = filtered_df.copy()
+            if event_type_filter:
+                filtered_df_copy = filtered_df[filtered_df['event_type'] == event_type_filter]
+
+            # Calculate fences and median
+            Q1 = filtered_df_copy[modified_col].quantile(0.25)
+            Q3 = filtered_df_copy[modified_col].quantile(0.75)
+            IQR = Q3 - Q1
+            lower_fence = max(Q1 - 1.5 * IQR, 0)
+            upper_fence = Q3 + 1.5 * IQR
+            median = filtered_df_copy[modified_col].median()
+
+            # Count outliers
+            num_above_fence = filtered_df_copy[filtered_df_copy[modified_col] > upper_fence].shape[0]
+            num_below_fence = filtered_df_copy[filtered_df_copy[modified_col] < lower_fence].shape[0]
+
+            # Calculate percentages
+            total_rows = filtered_df.shape[0]
+            percent_above_fence = (num_above_fence / total_rows) * 100
+            percent_below_fence = (num_below_fence / total_rows) * 100
+
+            # Display in table
+            info_table_data.append({
+                'Column': col,
+                'Median': median,
+                'Lower Fence Value': lower_fence,
+                'Upper Fence Value': upper_fence,
+                'Number Of Outliers Above Fence': num_above_fence,
+                'Percentage Out Of All Data (Outliers Above Fence)': f"{percent_above_fence:.2f}%",
+                'Number Of Outliers Below Fence': num_below_fence,
+                'Percentage Out Of All Data (Outliers Below Fence)': f"{percent_below_fence:.2f}%"
+            })
+
+        info_table_df = pd.DataFrame(info_table_data)
+        st.table(info_table_df)
+
+        # Continue displaying buttons for automatic filtering actions
+        
+        replace_with_fences_button = st.button("Replace with Fences Values")
+        replace_with_median_button = st.button("Replace with Median")
+        remove_outliers_button = st.button("Remove All Outliers")
+
+        if remove_outliers_button or replace_with_fences_button or replace_with_median_button:
+            for col in automatic_filter_columns:
+                modified_col, event_type_filter = modify_column_names(col)
+                filtered_df_copy = filtered_df.copy()
+                if event_type_filter:
+                    filtered_df_copy = filtered_df[filtered_df['event_type'] == event_type_filter]
+
+                # Calculate fences and median
+                Q1 = filtered_df_copy[modified_col].quantile(0.25)
+                Q3 = filtered_df_copy[modified_col].quantile(0.75)
+                IQR = Q3 - Q1
+                lower_fence = max(Q1 - 1.5 * IQR, 0)
+                upper_fence = Q3 + 1.5 * IQR
+                median = filtered_df_copy[modified_col].median()
+
+                action = None  # Initialize action variable
+
+                # Create a mask based on event_type_filter (if present)
+                if event_type_filter:
+                    mask = (filtered_df['event_type'] == event_type_filter)
+                    if remove_outliers_button:
+                        # Remove outliers for specific event_type_filter or all
+                        filtered_df.loc[mask, modified_col] = filtered_df.loc[mask, modified_col].apply(lambda x: x if (x >= lower_fence and x <= upper_fence) else x)
+                        action = 'Remove_outliers_'
+                    elif replace_with_fences_button:
+                        # Replace outliers with fences values for specific event_type_filter or all
+                        filtered_df.loc[mask & (filtered_df[modified_col] < lower_fence), modified_col] = lower_fence
+                        filtered_df.loc[mask & (filtered_df[modified_col] > upper_fence), modified_col] = upper_fence
+                        action = 'Replace_outliers_with_fences_'
+                    elif replace_with_median_button:
+                        # Replace outliers with median value for specific event_type_filter or all
+                        filtered_df.loc[mask & (filtered_df[modified_col] < lower_fence), modified_col] = median
+                        filtered_df.loc[mask & (filtered_df[modified_col] > upper_fence), modified_col] = median
+                        action = 'Replace_outliers_with_median_'
+                else:
+                    if remove_outliers_button:
+                    # Remove outliers for specific event_type_filter or all
+                        filtered_df.loc[modified_col] = filtered_df.loc[mask, modified_col].apply(lambda x: x if (x >= lower_fence and x <= upper_fence) else x)
+                        action = 'Remove_outliers_'
+                    elif replace_with_fences_button:
+                        # Replace outliers with fences values for specific event_type_filter or all
+                        filtered_df.loc[(filtered_df[modified_col] < lower_fence), modified_col] = lower_fence
+                        filtered_df.loc[(filtered_df[modified_col] > upper_fence), modified_col] = upper_fence
+                        action = 'Replace_outliers_with_fences_'
+                    elif replace_with_median_button:
+                        # Replace outliers with median value for specific event_type_filter or all
+                        filtered_df.loc[(filtered_df[modified_col] < lower_fence), modified_col] = median
+                        filtered_df.loc[(filtered_df[modified_col] > upper_fence), modified_col] = median
+                        action = 'Replace_outliers_with_median_'
+
     csv_filename = f"sc_events_filtered_"
+    if automatic_filter_columns:
+        if remove_outliers_button or replace_with_fences_button or replace_with_median_button:
+            if action:
+                csv_filename+= action
+                csv_filename += "_".join([f"{col}" for col in automatic_filter_values.keys()])
+                
+
     csv_filename += "_".join([f"{col}_{value}" for col, value in filter_values.items()])
     csv_filename += ".csv"
     csv_data = filtered_df.to_csv(index=False)
