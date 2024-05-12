@@ -105,11 +105,12 @@ uploaded_file = st.sidebar.file_uploader("Please load a sc_events file", type=["
 st.header('Outliers Analysis')
 
 if not uploaded_file:
-    st.subheader('Getting Started')
-    st.write('To start analysis upload your data and select the wanted columns.')
+    st.write('To start analysis upload your data')
 
 if uploaded_file:
+    st.write('Please select the wanted functions using the left sidebar, the script will analyze only service events.')
     df = pd.read_csv(uploaded_file, low_memory=False)
+    df = df[df['event_category'] == 'service']
     total_rows = df.shape[0]
     data = df
     st.sidebar.title("Settings")
@@ -220,8 +221,8 @@ if uploaded_file:
 
         # Continue displaying buttons for automatic filtering actions
         
-        replace_with_fences_button = st.button("Replace with Fences Values")
-        replace_with_median_button = st.button("Replace with Median")
+        replace_with_fences_button = st.button("Replace outliers with Fences Values")
+        replace_with_median_button = st.button("Replace outliers with Median")
         remove_outliers_button = st.button("Remove All Outliers")
 
         if remove_outliers_button or replace_with_fences_button or replace_with_median_button:
