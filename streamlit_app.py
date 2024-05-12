@@ -4,6 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 import plotly.express as px
+import numpy as np
 
 def modify_column_names(column_str):
     if column_str == 'field_labor_duration':
@@ -81,11 +82,14 @@ def histogram(column_str, data):
     
     if modified_col == 'labor_duration':
         filtered_data = filtered_data[filtered_data[modified_col] > 0]
-    if event_type_filter!= None:
+    if event_type_filter:
         st.subheader(f"Histogram of {event_type_filter}_{modified_col}:")
     else:
         st.subheader(f"Histogram of {modified_col}:")
+    
+    median_val = filtered_data[modified_col].median()
     plot = px.histogram(data_frame=filtered_data, x=modified_col, nbins=30)
+    plot.add_vline(x=median_val, line_dash="dash", line_color="red", annotation_text=f'Median: {median_val:.2f}', annotation_position="top left")
     st.plotly_chart(plot, theme="streamlit", use_container_width=True)
 
 columns = ['field_labor_duration', 'remote_labor_duration', 'total_labor_cost', 'part_cost', 'travel_duration_total']
