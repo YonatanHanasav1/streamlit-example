@@ -122,7 +122,7 @@ if uploaded_file:
     
     st.sidebar.title("Filter Data")
     st.sidebar.markdown("Here you can filter out values, and remove outlier rows")
-    filter_columns = st.sidebar.multiselect("Select columns for manually filtering", options=columns)
+    filter_columns = st.sidebar.multiselect("Select columns for **manually** filtering", options=columns)
     filter_values = {}
 
     # Display selected columns and values for each selected column
@@ -162,7 +162,7 @@ if uploaded_file:
         st.sidebar.write(f"{(total_rows - filtered_df.shape[0])} rows were filtered out")
         st.sidebar.write(f"{total_filtered_percentage}% of total rows were filtered out")
 
-    automatic_filter_columns = st.sidebar.multiselect("Select columns for automatic filtering", options=columns)
+    automatic_filter_columns = st.sidebar.multiselect("Select columns for **automatic** filtering", options=columns)
     automatic_filter_values = {}
 
     for col in automatic_filter_columns:
