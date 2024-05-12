@@ -85,7 +85,7 @@ def histogram(column_str, data):
     plot = px.histogram(data_frame=filtered_data, x=modified_col, nbins=30)
     st.plotly_chart(plot, theme="streamlit", use_container_width=True)
 
-columns = ['field_labor_duration', 'remote_labor_duration', 'total_labor_cost', 'part_cost', 'total_cost']
+columns = ['field_labor_duration', 'remote_labor_duration', 'total_labor_cost', 'part_cost', 'travel_duration_total']
 
 explanation = '''In a box plot, the upper and lower fences are used to identify potential outliers in the data.
             These fences are calculated based on the interquartile range (IQR), which is a measure of statistical data scatter.
