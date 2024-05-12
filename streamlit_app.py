@@ -34,7 +34,10 @@ def boxplotter(column_str, data):
     if modified_col == 'labor_duration':
         filtered_data = filtered_data[filtered_data[modified_col] > 0]
     
-    st.subheader(f"Box Plot of {event_type_filter}_{modified_col}:")
+    if event_type_filter != None:
+        st.subheader(f"Box Plot of {event_type_filter}_{modified_col}:")
+    else:
+        st.subheader(f"Box Plot of {modified_col}:")
     
     st.write("Data points showing on plot are the values outside of fences")
     plot = px.box(data_frame=filtered_data, y=modified_col)
