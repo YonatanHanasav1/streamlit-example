@@ -107,7 +107,7 @@ if uploaded_file:
     data = df
     st.sidebar.title("Settings")
     check_box2 = st.sidebar.checkbox(label="Display IQR outlier finding method explanation")
-    check_box1 = st.sidebar.checkbox(label="Display dataset sample")
+    check_box1 = st.sidebar.checkbox(label="Display a random dataset sample")
 
     st.sidebar.title("Plots")
     boxplot_selection = st.sidebar.multiselect(label="Select columns to create box plot", options=columns)
@@ -288,8 +288,8 @@ if uploaded_file:
         key=f"download_button_{download_button_key}")
         
     if check_box1:
-        st.subheader('Data Sample')
-        st.write(data.head(100))
+        st.subheader('Random Data Sample')
+        st.write(data.sample(25))
 
     if check_box2:
         st.subheader('IQR outlier finding method explanation')
