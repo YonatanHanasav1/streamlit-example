@@ -121,6 +121,7 @@ if uploaded_file:
             histogram(col, data=df)
     
     st.sidebar.title("Filter Data")
+    st.sidebar.markdown("Here you can filter out values, and remove outlier rows")
     filter_columns = st.sidebar.multiselect("Select columns for manually filtering", options=columns)
     filter_values = {}
 
