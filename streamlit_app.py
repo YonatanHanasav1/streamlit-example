@@ -104,10 +104,10 @@ def stacked_graph(data, column):
     categories = stacked_data.columns
     if column == 'event_category':
         colors = {'maintenance': 'green', 'installation': 'orange', 'service': 'blue'}
-        title = 'Event Category by Year'
+        title = 'Number of Events in each Event Cetegory Group by Year'
     elif column == 'event_type':
         colors = {'remote': 'orange', 'field': 'blue'}
-        title = 'Event Type by Year'
+        title = 'Number of Events in each Event Type Group by Year'
 
     for category in categories:
         fig.add_trace(go.Bar(x=stacked_data.index, y=stacked_data[category], name=category, marker_color=colors[category]))
