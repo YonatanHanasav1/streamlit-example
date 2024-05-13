@@ -92,6 +92,56 @@ def histogram(column_str, data):
     plot.add_vline(x=median_val, line_dash="dash", line_color="red", annotation_text=f'Median: {median_val:.2f}', annotation_position="top left")
     st.plotly_chart(plot, theme="streamlit", use_container_width=True)
 
+def stacked_graph(data, column):
+    # Extract year from the date column
+    data['year'] = pd.to_datetime(data['visit_date']).dt.year
+
+    # Group data by year and specified column and count occurrences
+    stacked_data = data.groupby(['year', column]).size().unstack(fill_value=0)
+
+    # Plot stacked bar graph using Plotly
+    fig = go.Figure()
+    categories = stacked_data.columns
+    if column == 'event_category':
+        colors = {'maintenance': 'green', 'installation': 'orange', 'service': 'blue'}
+        title = 'Event Category by Year'
+    elif column == 'event_type':
+        colors = {'remote': 'orange', 'field': 'blue'}
+        title = 'Event Type by Year'
+
+    for category in categories:
+        fig.add_trace(go.Bar(x=stacked_data.index, y=stacked_data[category], name=category, marker_color=colors[category]))
+
+    fig.update_layout(barmode='stack', xaxis_title="Year", yaxis_title="Count",
+                      title=title, xaxis=dict(tickmode='linear', tick0=min(data['year']), dtick=1),
+                      uniformtext_minsize=12, uniformtext_mode='hide')
+
+    # Add count labels inside the bars
+    fig.update_traces(texttemplate='%{y:,.0f}', textposition='auto', textfont=dict(size=12, color='white', family='Arial, sans-serif'))
+
+    st.plotly_chart(fig)
+
+def stacked_sum_graph(data, columns):
+    # Extract year from the date column
+    data['year'] = pd.to_datetime(data['visit_date']).dt.year
+
+    # Group data by year and sum up values for each column
+    summed_data = data.groupby('year')[columns].sum()
+
+    # Plot stacked bar graph using Plotly
+    fig = go.Figure()
+    for column in columns:
+        fig.add_trace(go.Bar(x=summed_data.index, y=summed_data[column], name=column))
+
+    fig.update_layout(barmode='stack', xaxis_title="Year", yaxis_title="Sum of $",
+                      title="Total Sum of Columns by Year", xaxis=dict(tickmode='linear', tick0=min(data['year']), dtick=1),
+                      uniformtext_minsize=12, uniformtext_mode='hide')
+
+    # Add count labels inside the bars
+    fig.update_traces(texttemplate='%{y:,.0f}', textposition='auto', textfont=dict(size=12, color='white', family='Arial, sans-serif'))
+
+    st.plotly_chart(fig)
+
 columns = ['field_labor_duration', 'remote_labor_duration', 'total_labor_cost', 'part_cost', 'travel_duration_total']
 
 explanation = '''In a box plot, the upper and lower fences are used to identify potential outliers in the data.
@@ -110,6 +160,7 @@ if not uploaded_file:
 if uploaded_file:
     st.write('Please select the wanted functions using the left sidebar, the script will analyze only service events.')
     df = pd.read_csv(uploaded_file, low_memory=False)
+    full_df = df.copy()
     df = df[df['event_category'] == 'service']
     total_rows = df.shape[0]
     data = df
@@ -128,6 +179,10 @@ if uploaded_file:
         for col in histogram_selection:
             histogram(col, data=df)
     
+    EC_stacked_graph_check_box = st.sidebar.checkbox(label="Display a stacked graph of event category per year")
+    ET_stacked_graph_check_box = st.sidebar.checkbox(label="Display a stacked graph of event type per year")
+    costs_stacked_graph_check_box = st.sidebar.checkbox(label="Display a stacked graph of different service costs per year")
+
     st.sidebar.title("Filter Data")
     st.sidebar.markdown("Here you can filter out values, and remove outlier rows")
     filter_columns = st.sidebar.multiselect("Select columns for **manually** filtering", options=columns)
@@ -304,3 +359,13 @@ if uploaded_file:
         lines = explanation.split('\n')
         for line in lines:
             st.write(line)
+
+    if EC_stacked_graph_check_box:
+        stacked_graph(full_df,'event_category')
+
+    if ET_stacked_graph_check_box:
+        stacked_graph(df,'event_type')
+
+    if costs_stacked_graph_check_box:
+        columns_to_plot = ['total_labor_cost', 'total_part_cost', 'travel_cost_total']
+        stacked_sum_graph(data, columns_to_plot)
