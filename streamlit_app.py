@@ -112,7 +112,7 @@ def stacked_graph(data, column):
     for category in categories:
         fig.add_trace(go.Bar(x=stacked_data.index, y=stacked_data[category], name=category, marker_color=colors[category]))
 
-    fig.update_layout(barmode='stack', xaxis_title="Year", yaxis_title="Count",
+    fig.update_layout(barmode='stack', xaxis_title="Year", yaxis_title="Number of Events",
                       title=title, xaxis=dict(tickmode='linear', tick0=min(data['year']), dtick=1),
                       uniformtext_minsize=12, uniformtext_mode='hide')
 
@@ -134,11 +134,43 @@ def stacked_sum_graph(data, columns):
         fig.add_trace(go.Bar(x=summed_data.index, y=summed_data[column], name=column))
 
     fig.update_layout(barmode='stack', xaxis_title="Year", yaxis_title="Sum of $",
-                      title="Total Sum of Columns by Year", xaxis=dict(tickmode='linear', tick0=min(data['year']), dtick=1),
+                      title="Stacked Sum of Labor, Travel and Parts Costs by Year", xaxis=dict(tickmode='linear', tick0=min(data['year']), dtick=1),
                       uniformtext_minsize=12, uniformtext_mode='hide')
 
     # Add count labels inside the bars
     fig.update_traces(texttemplate='%{y:,.0f}', textposition='auto', textfont=dict(size=12, color='white', family='Arial, sans-serif'))
+
+    st.plotly_chart(fig)
+
+def count_bar_chart(data, column):
+    # Extract year from the date column
+    data['year'] = pd.to_datetime(data['visit_date']).dt.year
+
+    # Group data by year and specified column and count occurrences
+    counted_data = data.groupby(['year', column]).size().reset_index(name='count')
+
+    # Calculate the total count for each year
+    total_count_by_year = counted_data.groupby('year')['count'].sum()
+
+    # Calculate the threshold for 5% of the total count
+    threshold = total_count_by_year * 0.05
+
+    # Filter counted_data to include only rows where the count is greater than the threshold
+    counted_data_filtered = counted_data[counted_data['count'] > threshold[counted_data['year']].values]
+
+    # Plot bar chart using Plotly
+    fig = px.bar(counted_data_filtered, x='year', y='count', color=column, text='count',
+                 labels={'year': 'Year', 'count': 'Number of Events'}, 
+                 title=f'Number of Events by each {column} by Year',
+                 barmode='group')
+
+    fig.update_layout(xaxis=dict(tickmode='linear', tick0=min(data['year']), dtick=1),
+                      uniformtext_minsize=8, uniformtext_mode='show',  # Adjust label settings
+                      xaxis_title='Year', yaxis_title='Number of Events',  # Label axis titles
+                      bargap=0.1)  # Adjust the gap between bars
+
+    fig.update_traces(textangle=0, textposition='auto',  # Set label position outside bars
+                      texttemplate='%{y:,.0f}', textfont=dict(size=10))  # Adjust label settings
 
     st.plotly_chart(fig)
 
@@ -172,16 +204,17 @@ if uploaded_file:
     boxplot_selection = st.sidebar.multiselect(label="Select columns to create box plot", options=columns)
     if boxplot_selection:
         for col in boxplot_selection:
-            boxplotter(col, data=df)
+            boxplotter(col, data)
     
     histogram_selection = st.sidebar.multiselect(label="Select columns to create histogram", options=columns)
     if histogram_selection:
         for col in histogram_selection:
-            histogram(col, data=df)
+            histogram(col, data)
     
     EC_stacked_graph_check_box = st.sidebar.checkbox(label="Display a stacked graph of event category per year")
     ET_stacked_graph_check_box = st.sidebar.checkbox(label="Display a stacked graph of event type per year")
-    costs_stacked_graph_check_box = st.sidebar.checkbox(label="Display a stacked graph of different service costs per year")
+    costs_stacked_graph_check_box = st.sidebar.checkbox(label="Display a stacked graph of service costs per year")
+    product_type_bar_chart_check_box = st.sidebar.checkbox(label="Display a bar graph of product type per year")
 
     st.sidebar.title("Filter Data")
     st.sidebar.markdown("Here you can filter out values, and remove outlier rows")
@@ -369,3 +402,6 @@ if uploaded_file:
     if costs_stacked_graph_check_box:
         columns_to_plot = ['total_labor_cost', 'total_part_cost', 'travel_cost_total']
         stacked_sum_graph(data, columns_to_plot)
+
+    if product_type_bar_chart_check_box:
+        count_bar_chart(data,'producttype_t2')
