@@ -83,9 +83,9 @@ def histogram(column_str, data):
     if modified_col == 'labor_duration':
         filtered_data = filtered_data[filtered_data[modified_col] > 0]
     if event_type_filter:
-        st.subheader(f"Histogram of {event_type_filter}_{modified_col}:")
+        st.subheader(f"Histogram of {event_type_filter}_{modified_col}")
     else:
-        st.subheader(f"Histogram of {modified_col}:")
+        st.subheader(f"Histogram of {modified_col}")
     
     median_val = filtered_data[modified_col].median()
     plot = px.histogram(data_frame=filtered_data, x=modified_col, nbins=30)
