@@ -292,25 +292,32 @@ if uploaded_file:
             lower_fence = max(Q1 - 1.5 * IQR, 0)
             upper_fence = Q3 + 1.5 * IQR
             median = filtered_df_copy[modified_col].median()
+            formatted_median = "{:.0f}".format(median)
+
 
             # Count outliers
             num_above_fence = filtered_df_copy[filtered_df_copy[modified_col] > upper_fence].shape[0]
+            formatted_num_above_fence= "{:,.0f}".format(num_above_fence)
             num_below_fence = filtered_df_copy[filtered_df_copy[modified_col] < lower_fence].shape[0]
+            formatted_num_below_fence= "{:,.0f}".format(num_below_fence)
 
             # Calculate percentages
             total_rows = filtered_df.shape[0]
             percent_above_fence = (num_above_fence / total_rows) * 100
             percent_below_fence = (num_below_fence / total_rows) * 100
 
+            formatted_upper_fence = "{:,.0f}".format(upper_fence)
+            formatted_lower_fence = "{:,.0f}".format(lower_fence)
+
             # Display in table
             info_table_data.append({
                 'Column': col,
-                'Median': median,
-                'Lower Fence Value': lower_fence,
-                'Upper Fence Value': upper_fence,
-                'Number Of Outliers Above Fence': num_above_fence,
+                'Median': formatted_median,
+                'Lower Fence Value': formatted_lower_fence,
+                'Upper Fence Value': formatted_upper_fence,
+                'Number Of Outliers Above Fence': formatted_num_above_fence,
                 'Percentage Out Of All Data (Outliers Above Fence)': f"{percent_above_fence:.2f}%",
-                'Number Of Outliers Below Fence': num_below_fence,
+                'Number Of Outliers Below Fence': formatted_num_below_fence,
                 'Percentage Out Of All Data (Outliers Below Fence)': f"{percent_below_fence:.2f}%"
             })
 
