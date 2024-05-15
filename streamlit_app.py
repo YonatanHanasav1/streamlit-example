@@ -32,18 +32,17 @@ def boxplotter(column_str, data):
     if event_type_filter:
         filtered_data = data[data['event_type'] == event_type_filter]
     
-    if modified_col == 'labor_duration':
-        filtered_data = filtered_data[filtered_data[modified_col] > 0]
+    # Uncomment if you need to filter labor_duration
+    # if modified_col == 'labor_duration':
+    #     filtered_data = filtered_data[filtered_data[modified_col] > 0]
     
-    if event_type_filter != None:
-        st.subheader(f"Box Plot of {event_type_filter}_{modified_col}:")
+    if event_type_filter is not None:
+        st.subheader(f"Box Plot of {event_type_filter}_{modified_col}")
     else:
-        st.subheader(f"Box Plot of {modified_col}:")
+        st.subheader(f"Box Plot of {modified_col}")
     
     st.write("Data points showing on plot are the values outside of fences")
-    plot = px.box(data_frame=filtered_data, y=modified_col)
-    st.plotly_chart(plot, theme="streamlit", use_container_width=True)
-
+    # Calculate the quartiles and fences
     median = filtered_data[modified_col].median()
     Q1 = filtered_data[modified_col].quantile(0.25)
     Q3 = filtered_data[modified_col].quantile(0.75)
@@ -51,25 +50,32 @@ def boxplotter(column_str, data):
     lower_fence = max(Q1 - 1.5 * IQR, 0)
     upper_fence = Q3 + 1.5 * IQR
     
+    # Create the box plot
+    plot = px.box(data_frame=filtered_data, y=modified_col)
+    st.plotly_chart(plot, theme="streamlit", use_container_width=True)
+
+    # Display fences and median in a table
     fences_median_df = pd.DataFrame({
         'Metric': ['Upper Fence', 'Lower Fence', 'Median'],
         'Value': [upper_fence, lower_fence, median]
     })
     fences_median_df['Value'] = fences_median_df['Value'].round(2)
+    fences_median_df['Value'] = fences_median_df['Value'].map(lambda x: f"{x:,.2f}".rstrip('0').rstrip('.'))
     st.table(fences_median_df)
 
+    # Identify and display highest and lowest 5 outliers
     highest_5_outliers = filtered_data[[modified_col, 'investigation_id']].sort_values(by=modified_col, ascending=False).head(5)
     lowest_5_outliers = filtered_data[[modified_col, 'investigation_id']].sort_values(by=modified_col, ascending=True).head(5)
 
     col1, col2 = st.columns(2)
 
     with col1:
-        title_text = f"Highest 5 outliers for {event_type_filter}_{modified_col}:" if modified_col == 'labor_duration' else f"Highest 5 outliers for {modified_col}:"
+        title_text = f"Highest 5 outliers for {event_type_filter}_{modified_col}:" if event_type_filter else f"Highest 5 outliers for {modified_col}:"
         st.write(title_text)
         format_and_display_table(highest_5_outliers, title_text, modified_col, 'investigation_id')
 
     with col2:
-        title_text = f"Lowest 5 outliers for {event_type_filter}_{modified_col}:" if modified_col == 'labor_duration' else f"Lowest 5 outliers for {modified_col}:"
+        title_text = f"Lowest 5 outliers for {event_type_filter}_{modified_col}:" if event_type_filter else f"Lowest 5 outliers for {modified_col}:"
         st.write(title_text)
         format_and_display_table(lowest_5_outliers, title_text, modified_col, 'investigation_id')
 
@@ -90,6 +96,10 @@ def histogram(column_str, data):
     median_val = filtered_data[modified_col].median()
     plot = px.histogram(data_frame=filtered_data, x=modified_col, nbins=30)
     plot.add_vline(x=median_val, line_dash="dash", line_color="red", annotation_text=f'Median: {median_val:.2f}', annotation_position="top left")
+
+    # Update the layout to set the y-axis title
+    plot.update_layout(yaxis_title='Number of Events')
+
     st.plotly_chart(plot, theme="streamlit", use_container_width=True)
 
 def stacked_graph(data, column):
