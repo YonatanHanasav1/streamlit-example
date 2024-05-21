@@ -20,7 +20,7 @@ def format_and_display_table(data, title, column_str, id_column):
     formatted_table = data.reset_index(drop=True)
     formatted_table.index += 1
     formatted_table[column_str] = formatted_table[column_str].round(2)
-    formatted_table[column_str] = formatted_table[column_str].astype(str).str.replace(r'[\(\)]', '')
+    formatted_table[column_str] = formatted_table[column_str].map(lambda x: "{:,.2f}".format(x))
     formatted_table[id_column] = formatted_table[id_column].astype(str)
     formatted_table = formatted_table[[id_column, column_str]]
     st.table(formatted_table)
@@ -72,13 +72,11 @@ def boxplotter(column_str, data):
     with col1:
         title_text = f"Highest 5 outliers for {event_type_filter}_{modified_col}:" if event_type_filter else f"Highest 5 outliers for {modified_col}:"
         st.write(title_text)
-        highest_5_outliers= "{:,.0f}".format(highest_5_outliers)
         format_and_display_table(highest_5_outliers, title_text, modified_col, 'investigation_id')
 
     with col2:
         title_text = f"Lowest 5 outliers for {event_type_filter}_{modified_col}:" if event_type_filter else f"Lowest 5 outliers for {modified_col}:"
         st.write(title_text)
-        lowest_5_outliers= "{:,.0f}".format(lowest_5_outliers)
         format_and_display_table(lowest_5_outliers, title_text, modified_col, 'investigation_id')
 
 def histogram(column_str, data):
@@ -186,6 +184,41 @@ def count_bar_chart(data, column):
 
     st.plotly_chart(fig)
 
+def pie_chart(data, col):
+
+    modified_col = modify_column_names(col)[0]
+
+    # Calculate fences and median
+    Q1 = data[modified_col].quantile(0.25)
+    Q3 = data[modified_col].quantile(0.75)
+    IQR = Q3 - Q1
+    lower_fence = max(Q1 - 1.5 * IQR, 0)
+    upper_fence = Q3 + 1.5 * IQR
+
+    # Filter the data into three groups
+    below_lower_fence = data[data[modified_col] < lower_fence]
+    within_fences = data[(data[modified_col] >= lower_fence) & (data[modified_col] <= upper_fence)]
+    above_upper_fence = data[data[modified_col] > upper_fence]
+
+    # Calculate the sum of each group
+    sum_below_lower_fence = below_lower_fence[modified_col].sum()
+    sum_within_fences = within_fences[modified_col].sum()
+    sum_above_upper_fence = above_upper_fence[modified_col].sum()
+
+    # Prepare data for Plotly
+    data = {
+        'Category': ['Below Lower Fence', 'Within Fences', 'Above Upper Fence'],
+        'Total Part Cost': [sum_below_lower_fence, sum_within_fences, sum_above_upper_fence]}
+
+    # Create a DataFrame
+    df = pd.DataFrame(data)
+    
+    # Create a pie chart
+    fig = px.pie(df, values='Total Part Cost', names='Category', title='Sum of Total Part Cost: Outliers vs Non-Outliers')
+
+    # Display the chart using Streamlit
+    st.plotly_chart(fig)
+
 columns = ['field_labor_duration', 'remote_labor_duration', 'total_labor_cost', 'part_cost', 'travel_duration_total']
 
 explanation = '''In a box plot, the upper and lower fences are used to identify potential outliers in the data.
@@ -223,6 +256,11 @@ if uploaded_file:
         for col in histogram_selection:
             histogram(col, data)
     
+    pie_selection = st.sidebar.multiselect(label="Select columns to create outliers pie chart", options=columns)
+    if pie_selection:
+        for col in pie_selection:
+            pie_chart(data, col)
+
     EC_stacked_graph_check_box = st.sidebar.checkbox(label="Display a stacked graph of event category per year")
     ET_stacked_graph_check_box = st.sidebar.checkbox(label="Display a stacked graph of event type per year")
     costs_stacked_graph_check_box = st.sidebar.checkbox(label="Display a stacked graph of service costs per year")
