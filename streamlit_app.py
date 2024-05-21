@@ -72,11 +72,13 @@ def boxplotter(column_str, data):
     with col1:
         title_text = f"Highest 5 outliers for {event_type_filter}_{modified_col}:" if event_type_filter else f"Highest 5 outliers for {modified_col}:"
         st.write(title_text)
+        highest_5_outliers= "{:,.0f}".format(highest_5_outliers)
         format_and_display_table(highest_5_outliers, title_text, modified_col, 'investigation_id')
 
     with col2:
         title_text = f"Lowest 5 outliers for {event_type_filter}_{modified_col}:" if event_type_filter else f"Lowest 5 outliers for {modified_col}:"
         st.write(title_text)
+        lowest_5_outliers= "{:,.0f}".format(lowest_5_outliers)
         format_and_display_table(lowest_5_outliers, title_text, modified_col, 'investigation_id')
 
 def histogram(column_str, data):
@@ -301,6 +303,12 @@ if uploaded_file:
             num_below_fence = filtered_df_copy[filtered_df_copy[modified_col] < lower_fence].shape[0]
             formatted_num_below_fence= "{:,.0f}".format(num_below_fence)
 
+            sum_above_fence = filtered_df_copy[filtered_df_copy[modified_col] > upper_fence]['total_labor_cost'].sum()
+            formatted_sum_above_fence= "{:,.0f}".format(sum_above_fence)
+
+            sum_below_fence = filtered_df_copy[filtered_df_copy[modified_col] < lower_fence]['total_labor_cost'].sum()
+            formatted_sum_below_fence= "{:,.0f}".format(sum_below_fence)
+
             # Calculate percentages
             total_rows = filtered_df.shape[0]
             percent_above_fence = (num_above_fence / total_rows) * 100
@@ -317,8 +325,10 @@ if uploaded_file:
                 'Upper Fence Value': formatted_upper_fence,
                 'Number Of Outliers Above Fence': formatted_num_above_fence,
                 'Percentage Out Of All Data (Outliers Above Fence)': f"{percent_above_fence:.2f}%",
+                'Sum of Outliers Above Fence Values' : formatted_sum_above_fence,
                 'Number Of Outliers Below Fence': formatted_num_below_fence,
-                'Percentage Out Of All Data (Outliers Below Fence)': f"{percent_below_fence:.2f}%"
+                'Percentage Out Of All Data (Outliers Below Fence)': f"{percent_below_fence:.2f}%",
+                'Sum of Outliers Below Fence Values' : formatted_sum_below_fence
             })
 
         info_table_df = pd.DataFrame(info_table_data)
