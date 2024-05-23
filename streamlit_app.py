@@ -32,10 +32,6 @@ def boxplotter(column_str, data):
     if event_type_filter:
         filtered_data = data[data['event_type'] == event_type_filter]
     
-    # Uncomment if you need to filter labor_duration
-    # if modified_col == 'labor_duration':
-    #     filtered_data = filtered_data[filtered_data[modified_col] > 0]
-    
     if event_type_filter is not None:
         st.subheader(f"Box Plot of {event_type_filter}_{modified_col}")
     else:
@@ -219,7 +215,7 @@ def pie_chart(data, col):
     # Display the chart using Streamlit
     st.plotly_chart(fig)
 
-columns = ['field_labor_duration', 'remote_labor_duration', 'total_labor_cost', 'part_cost', 'travel_duration_total']
+columns = ['field_labor_duration', 'remote_labor_duration', 'travel_duration_total', 'total_labor_cost', 'part_cost']
 
 explanation = '''In a box plot, the upper and lower fences are used to identify potential outliers in the data.
             These fences are calculated based on the interquartile range (IQR), which is a measure of statistical data scatter.
@@ -260,11 +256,6 @@ if uploaded_file:
     if pie_selection:
         for col in pie_selection:
             pie_chart(data, col)
-
-    EC_stacked_graph_check_box = st.sidebar.checkbox(label="Display a stacked graph of event category per year")
-    ET_stacked_graph_check_box = st.sidebar.checkbox(label="Display a stacked graph of event type per year")
-    costs_stacked_graph_check_box = st.sidebar.checkbox(label="Display a stacked graph of service costs per year")
-    product_type_bar_chart_check_box = st.sidebar.checkbox(label="Display a bar graph of product type per year")
 
     st.sidebar.title("Filter Data")
     st.sidebar.markdown("Here you can filter out values, and remove outlier rows")
@@ -447,7 +438,13 @@ if uploaded_file:
         data=csv_data,
         file_name=csv_filename,
         key=f"download_button_{download_button_key}")
-        
+
+    st.sidebar.title("Additional Graphs")
+    EC_stacked_graph_check_box = st.sidebar.checkbox(label="Display a stacked graph of event category per year")
+    ET_stacked_graph_check_box = st.sidebar.checkbox(label="Display a stacked graph of event type per year")
+    costs_stacked_graph_check_box = st.sidebar.checkbox(label="Display a stacked graph of service costs per year")
+    product_type_bar_chart_check_box = st.sidebar.checkbox(label="Display a bar graph of product type per year")
+
     if check_box1:
         st.subheader('Random Data Sample')
         st.write(data.sample(25))
