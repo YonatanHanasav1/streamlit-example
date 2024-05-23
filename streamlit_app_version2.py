@@ -226,7 +226,11 @@ def bar_chart_sum_vs_non_outliers(data, col):
     percentage_of_change = round(100*(1-(sum_non_outlier_values / sum_all_values)),2)
     difference_of_change = round(sum_all_values - sum_non_outlier_values,2)
     formatted_difference_of_change = "{:,.0f}".format(difference_of_change)
-    st.markdown(f'Outliers values adding up {formatted_difference_of_change} which is {percentage_of_change}% out of total column sum of values')
+    if 'duration' in modified_col:
+        units = 'hours'
+    else:
+        units = 'dollars'
+    st.markdown(f'Outliers values adding up {formatted_difference_of_change} {units} which is {percentage_of_change}% out of total column sum of values')
 
 columns = ['field_labor_duration', 'remote_labor_duration', 'travel_duration_total', 'total_labor_cost', 'part_cost']
 
