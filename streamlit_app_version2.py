@@ -98,41 +98,6 @@ def histogram(column_str, data):
 
     st.plotly_chart(plot, theme="streamlit", use_container_width=True)
 
-def pie_chart(data, col):
-
-    modified_col = modify_column_names(col)[0]
-
-    # Calculate fences and median
-    Q1 = data[modified_col].quantile(0.25)
-    Q3 = data[modified_col].quantile(0.75)
-    IQR = Q3 - Q1
-    lower_fence = max(Q1 - 1.5 * IQR, 0)
-    upper_fence = Q3 + 1.5 * IQR
-
-    # Filter the data into three groups
-    below_lower_fence = data[data[modified_col] < lower_fence]
-    within_fences = data[(data[modified_col] >= lower_fence) & (data[modified_col] <= upper_fence)]
-    above_upper_fence = data[data[modified_col] > upper_fence]
-
-    # Calculate the sum of each group
-    sum_below_lower_fence = below_lower_fence[modified_col].sum()
-    sum_within_fences = within_fences[modified_col].sum()
-    sum_above_upper_fence = above_upper_fence[modified_col].sum()
-
-    # Prepare data for Plotly
-    data = {
-        'Category': ['Below Lower Fence', 'Within Fences', 'Above Upper Fence'],
-        str(modified_col): [sum_below_lower_fence, sum_within_fences, sum_above_upper_fence]}
-
-    # Create a DataFrame
-    df = pd.DataFrame(data)
-    
-    # Create a pie chart
-    fig = px.pie(df, values=modified_col, names='Category', title=f'Sum of Values: {modified_col} Outliers vs Non-Outliers')
-
-    # Display the chart using Streamlit
-    st.plotly_chart(fig)
-
 def stacked_graph(data, column):
     # Extract year from the date column
     data['year'] = pd.to_datetime(data['visit_date']).dt.year
@@ -215,6 +180,53 @@ def count_bar_chart(data, column):
 
     st.plotly_chart(fig)
 
+def bar_chart_sum_vs_non_outliers(data, col):
+    modified_col, event_type_filter = modify_column_names(col)
+
+    filtered_data = data
+    if event_type_filter:
+        filtered_data = data[data['event_type'] == event_type_filter]
+    
+    if modified_col == 'labor_duration':
+        filtered_data = filtered_data[filtered_data[modified_col] > 0]
+    if event_type_filter:
+        st.subheader(f"Bar Chart of {event_type_filter}_{modified_col}, comparing with and without outliers values")
+    else:
+        st.subheader(f"Bar Chart of {modified_col},comparing with and without outliers values")
+
+    # Calculate the quartiles and fences
+    Q1 = filtered_data[modified_col].quantile(0.25)
+    Q3 = filtered_data[modified_col].quantile(0.75)
+    IQR = Q3 - Q1
+    lower_fence = max(Q1 - 1.5 * IQR, 0)
+    upper_fence = Q3 + 1.5 * IQR
+
+    # Sum of all values
+    sum_all_values = filtered_data[modified_col].sum()
+
+    # Sum of non-outlier values
+    non_outliers = filtered_data[(filtered_data[modified_col] >= lower_fence) & (filtered_data[modified_col] <= upper_fence)]
+    sum_non_outlier_values = non_outliers[modified_col].sum()
+
+    # Prepare filtered_data for Plotly
+    filtered_data = {
+        'Category': ['Sum of All Values', 'Sum of Non-Outlier Values'],
+        str(modified_col): [sum_all_values, sum_non_outlier_values]
+    }
+
+    # Create a DataFrame
+    df = pd.DataFrame(filtered_data)
+
+    # Create a bar chart
+    fig = px.bar(df, x='Category', y=modified_col, title=f'Sum of Values vs. Non-Outlier Values: {modified_col}', color='Category', text_auto=True)
+
+    # Display the chart using Streamlit
+    st.plotly_chart(fig)
+
+    percentage_of_change = round(100*(1-(sum_non_outlier_values / sum_all_values)),2)
+    difference_of_change = round(sum_all_values - sum_non_outlier_values,2)
+    formatted_difference_of_change = "{:,.0f}".format(difference_of_change)
+    st.markdown(f'Outliers values adding up {formatted_difference_of_change} which is {percentage_of_change}% out of total column sum of values')
 
 columns = ['field_labor_duration', 'remote_labor_duration', 'travel_duration_total', 'total_labor_cost', 'part_cost']
 
@@ -241,7 +253,16 @@ if uploaded_file:
     
     st.title("Settings")
     check_box2 = st.checkbox(label="Display IQR outlier finding method explanation")
+    if check_box2:
+        st.subheader('IQR outlier finding method explanation')
+        lines = explanation.split('\n')
+        for line in lines:
+            st.write(line)
+
     check_box1 = st.checkbox(label="Display a random dataset sample")
+    if check_box1:
+        st.subheader('Random Data Sample')
+        st.write(data.sample(25))
 
     st.title("Plots")
     plot_selection = st.multiselect(label="Select columns to create plots", options=columns)
@@ -250,7 +271,8 @@ if uploaded_file:
         for col in plot_selection:
             boxplotter(col, data)
             histogram(col, data)
-            pie_chart(data, col)
+            bar_chart_sum_vs_non_outliers(data, col)
+
 
     st.title("Filter Data")
     st.markdown("Here you can filter out values, and remove outlier rows")
