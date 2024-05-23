@@ -6,6 +6,33 @@ import plotly.graph_objects as go
 import plotly.express as px
 import numpy as np
 
+def calculate_IQR(data,col):
+    filtered_data = data
+    modified_col, event_type_filter = modify_column_names(col)
+    if event_type_filter:
+        filtered_data = data[data['event_type'] == event_type_filter]
+    # Calculate the quartiles and fences
+    median = filtered_data[modified_col].median()
+    Q1 = filtered_data[modified_col].quantile(0.25)
+    Q3 = filtered_data[modified_col].quantile(0.75)
+    IQR = Q3 - Q1
+    lower_fence = max(Q1 - 1.5 * IQR, 0)
+    upper_fence = Q3 + 1.5 * IQR
+
+    return median,lower_fence,upper_fence
+
+def calculate_percentiles_method(data,col,top_percentile,bottom_percentile):
+    filtered_data = data
+    modified_col, event_type_filter = modify_column_names(col)
+    if event_type_filter:
+        filtered_data = data[data['event_type'] == event_type_filter]
+    modified_col = modify_column_names(col)[0]
+    median = filtered_data[modified_col].median()
+    lower_fence = filtered_data[modified_col].quantile(bottom_percentile/100)
+    upper_fence = filtered_data[modified_col].quantile(top_percentile/100)
+
+    return median,lower_fence,upper_fence
+
 def modify_column_names(column_str):
     if column_str == 'field_labor_duration':
         return 'labor_duration', 'field'
@@ -25,7 +52,7 @@ def format_and_display_table(data, title, column_str, id_column):
     formatted_table = formatted_table[[id_column, column_str]]
     st.table(formatted_table)
 
-def boxplotter(column_str, data):
+def boxplotter(column_str, data,median,lower_fence,upper_fence):
     modified_col, event_type_filter = modify_column_names(column_str)
     
     filtered_data = data
@@ -38,13 +65,6 @@ def boxplotter(column_str, data):
         st.subheader(f"Box Plot of {modified_col}")
     
     st.write("Data points showing on plot are the values outside of fences")
-    # Calculate the quartiles and fences
-    median = filtered_data[modified_col].median()
-    Q1 = filtered_data[modified_col].quantile(0.25)
-    Q3 = filtered_data[modified_col].quantile(0.75)
-    IQR = Q3 - Q1
-    lower_fence = max(Q1 - 1.5 * IQR, 0)
-    upper_fence = Q3 + 1.5 * IQR
     
     # Create the box plot
     plot = px.box(data_frame=filtered_data, y=modified_col)
@@ -97,6 +117,58 @@ def histogram(column_str, data):
     plot.update_layout(yaxis_title='Number of Events')
 
     st.plotly_chart(plot, theme="streamlit", use_container_width=True)
+
+def bar_chart_sum_vs_non_outliers(data, col):
+    modified_col, event_type_filter = modify_column_names(col)
+
+    filtered_data = data
+    if event_type_filter:
+        filtered_data = data[data['event_type'] == event_type_filter]
+    
+    if modified_col == 'labor_duration':
+        filtered_data = filtered_data[filtered_data[modified_col] > 0]
+    if event_type_filter:
+        st.subheader(f"Bar Chart of {event_type_filter}_{modified_col}, comparing with and without outliers values")
+    else:
+        st.subheader(f"Bar Chart of {modified_col},comparing with and without outliers values")
+
+    # Calculate the quartiles and fences
+    Q1 = filtered_data[modified_col].quantile(0.25)
+    Q3 = filtered_data[modified_col].quantile(0.75)
+    IQR = Q3 - Q1
+    lower_fence = max(Q1 - 1.5 * IQR, 0)
+    upper_fence = Q3 + 1.5 * IQR
+
+    # Sum of all values
+    sum_all_values = filtered_data[modified_col].sum()
+
+    # Sum of non-outlier values
+    non_outliers = filtered_data[(filtered_data[modified_col] >= lower_fence) & (filtered_data[modified_col] <= upper_fence)]
+    sum_non_outlier_values = non_outliers[modified_col].sum()
+
+    # Prepare filtered_data for Plotly
+    filtered_data = {
+        'Category': ['Sum of All Values', 'Sum of Non-Outlier Values'],
+        str(modified_col): [sum_all_values, sum_non_outlier_values]
+    }
+
+    # Create a DataFrame
+    df = pd.DataFrame(filtered_data)
+
+    # Create a bar chart
+    fig = px.bar(df, x='Category', y=modified_col, title=f'Sum of Values vs. Non-Outlier Values: {modified_col}', color='Category', text_auto=True)
+
+    # Display the chart using Streamlit
+    st.plotly_chart(fig)
+
+    percentage_of_change = round(100*(1-(sum_non_outlier_values / sum_all_values)),2)
+    difference_of_change = round(sum_all_values - sum_non_outlier_values,2)
+    formatted_difference_of_change = "{:,.0f}".format(difference_of_change)
+    if 'duration' in modified_col:
+        units = 'hours'
+    else:
+        units = 'dollars'
+    st.markdown(f'Outliers values adding up {formatted_difference_of_change} {units} which is {percentage_of_change}% out of total column sum of values')
 
 def stacked_graph(data, column):
     # Extract year from the date column
@@ -180,58 +252,6 @@ def count_bar_chart(data, column):
 
     st.plotly_chart(fig)
 
-def bar_chart_sum_vs_non_outliers(data, col):
-    modified_col, event_type_filter = modify_column_names(col)
-
-    filtered_data = data
-    if event_type_filter:
-        filtered_data = data[data['event_type'] == event_type_filter]
-    
-    if modified_col == 'labor_duration':
-        filtered_data = filtered_data[filtered_data[modified_col] > 0]
-    if event_type_filter:
-        st.subheader(f"Bar Chart of {event_type_filter}_{modified_col}, comparing with and without outliers values")
-    else:
-        st.subheader(f"Bar Chart of {modified_col},comparing with and without outliers values")
-
-    # Calculate the quartiles and fences
-    Q1 = filtered_data[modified_col].quantile(0.25)
-    Q3 = filtered_data[modified_col].quantile(0.75)
-    IQR = Q3 - Q1
-    lower_fence = max(Q1 - 1.5 * IQR, 0)
-    upper_fence = Q3 + 1.5 * IQR
-
-    # Sum of all values
-    sum_all_values = filtered_data[modified_col].sum()
-
-    # Sum of non-outlier values
-    non_outliers = filtered_data[(filtered_data[modified_col] >= lower_fence) & (filtered_data[modified_col] <= upper_fence)]
-    sum_non_outlier_values = non_outliers[modified_col].sum()
-
-    # Prepare filtered_data for Plotly
-    filtered_data = {
-        'Category': ['Sum of All Values', 'Sum of Non-Outlier Values'],
-        str(modified_col): [sum_all_values, sum_non_outlier_values]
-    }
-
-    # Create a DataFrame
-    df = pd.DataFrame(filtered_data)
-
-    # Create a bar chart
-    fig = px.bar(df, x='Category', y=modified_col, title=f'Sum of Values vs. Non-Outlier Values: {modified_col}', color='Category', text_auto=True)
-
-    # Display the chart using Streamlit
-    st.plotly_chart(fig)
-
-    percentage_of_change = round(100*(1-(sum_non_outlier_values / sum_all_values)),2)
-    difference_of_change = round(sum_all_values - sum_non_outlier_values,2)
-    formatted_difference_of_change = "{:,.0f}".format(difference_of_change)
-    if 'duration' in modified_col:
-        units = 'hours'
-    else:
-        units = 'dollars'
-    st.markdown(f'Outliers values adding up {formatted_difference_of_change} {units} which is {percentage_of_change}% out of total column sum of values')
-
 columns = ['field_labor_duration', 'remote_labor_duration', 'travel_duration_total', 'total_labor_cost', 'part_cost']
 
 explanation = '''In a box plot, the upper and lower fences are used to identify potential outliers in the data.
@@ -256,24 +276,34 @@ if uploaded_file:
     data = df
     
     st.title("Settings")
-    check_box2 = st.checkbox(label="Display IQR outlier finding method explanation")
-    if check_box2:
-        st.subheader('IQR outlier finding method explanation')
-        lines = explanation.split('\n')
-        for line in lines:
-            st.write(line)
+    outlier_finiding_methods = ['Interquartile Range','Percentile Based']
+    chosen_method = st.selectbox(label="Select outlier finding method", options=outlier_finiding_methods)  
+    if chosen_method == 'Percentile Based':
+        bottom_percentile,top_percentile = st.slider("Please select a range of values for top and bottom percentiles", 0, 100, (5,95))
 
     check_box1 = st.checkbox(label="Display a random dataset sample")
     if check_box1:
         st.subheader('Random Data Sample')
         st.write(data.sample(25))
 
+    check_box2 = st.checkbox(label="Explain interquartile range (IQR) method")
+    if check_box2:
+        st.subheader('IQR outlier finding method explanation')
+        lines = explanation.split('\n')
+        for line in lines:
+            st.write(line)
+
     st.title("Plots")
     plot_selection = st.multiselect(label="Select columns to create plots", options=columns)
     
     if plot_selection:
         for col in plot_selection:
-            boxplotter(col, data)
+            if chosen_method == 'Interquartile Range':
+                median,lower_fence,upper_fence = calculate_IQR(data,col)
+            if chosen_method == 'Percentile Based':
+                median,lower_fence,upper_fence = calculate_percentiles_method(data,col,top_percentile,bottom_percentile)
+            
+            boxplotter(col, data,median,lower_fence,upper_fence)
             histogram(col, data)
             bar_chart_sum_vs_non_outliers(data, col)
 
