@@ -204,13 +204,13 @@ def pie_chart(data, col):
     # Prepare data for Plotly
     data = {
         'Category': ['Below Lower Fence', 'Within Fences', 'Above Upper Fence'],
-        'Total Part Cost': [sum_below_lower_fence, sum_within_fences, sum_above_upper_fence]}
+        str(modified_col): [sum_below_lower_fence, sum_within_fences, sum_above_upper_fence]}
 
     # Create a DataFrame
     df = pd.DataFrame(data)
     
     # Create a pie chart
-    fig = px.pie(df, values='Total Part Cost', names='Category', title='Sum of Total Part Cost: Outliers vs Non-Outliers')
+    fig = px.pie(df, values=modified_col, names='Category', title=f'Sum of Values: {modified_col} Outliers vs Non-Outliers')
 
     # Display the chart using Streamlit
     st.plotly_chart(fig)
