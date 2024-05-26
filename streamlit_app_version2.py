@@ -314,13 +314,16 @@ if uploaded_file:
     # Display selected columns and values for each selected column
     for col in filter_columns:
         modified_col, event_type_filter = modify_column_names(col)
+        if chosen_method == 'Interquartile Range':
+            upper_fence = calculate_IQR(data,modified_col)[2]
+        if chosen_method == 'Percentile Based':
+            upper_fence = calculate_percentiles_method(data,modified_col,top_percentile,bottom_percentile)[2]
         if modified_col == 'labor_duration':
-            filter_values[col] = st.number_input(f"Enter maximum fixed value for {event_type_filter}_{modified_col}, minimum value set to be 0", min_value=0.0)
+            filter_values[col] = st.number_input(f"Enter maximum fixed value for {event_type_filter}_{modified_col}, minimum value set to be 0", min_value=0.0,value = upper_fence)
         else:
-            filter_values[col] = st.number_input(f"Enter maximum fixed value for {modified_col}, minimum value set to be 0", min_value=0.0)
+            filter_values[col] = st.number_input(f"Enter maximum fixed value for {modified_col}, minimum value set to be 0", min_value=0.0,value = upper_fence)
 
     filtered_df = df.copy()
-    sorted_columns = []
 
     for col, value in filter_values.items():
         modified_col, event_type_filter = modify_column_names(col)
@@ -329,19 +332,6 @@ if uploaded_file:
             filtered_df = filtered_df[((filtered_df['event_type'] != event_type_filter) | ((filtered_df['event_type'] == event_type_filter) & (filtered_df[modified_col] <= value)))]
         else:
             filtered_df = filtered_df[filtered_df[modified_col] <= value]
-
-        sorted_columns.append(modified_col)
-        sorted_columns = set(sorted_columns)
-        sorted_columns = list(sorted_columns)
-
-    all_columns = sorted_columns + [col for col in filtered_df.columns if col not in sorted_columns]
-
-    if len(sorted_columns) != 0 and filter_columns:
-        filtered_df = filtered_df.sort_values(by=sorted_columns, ascending=False)
-        Filtered_DataFrame_check_box = st.checkbox(label="Display the filtered data frame")
-        if Filtered_DataFrame_check_box:
-            st.subheader("Filtered DataFrame:")
-            st.write(filtered_df[all_columns].head(100))
 
     automatic_filter_columns = st.multiselect("Select columns for **automatic** filtering", options=columns)
     automatic_filter_values = {}
