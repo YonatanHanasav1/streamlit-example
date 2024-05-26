@@ -300,7 +300,6 @@ if uploaded_file:
             histogram(col, data)
             bar_chart_sum_vs_non_outliers(data, col)
 
-
     st.title("Filter Data")
     st.markdown("Here you can filter out values, and remove outlier rows")
 
@@ -309,19 +308,16 @@ if uploaded_file:
     if chosen_method == 'Percentile Based':
         bottom_percentile,top_percentile = st.slider("Please select a range of values for top and bottom percentiles", 0, 100, (5,95))
 
-    filter_columns = st.multiselect("Select columns for **manually** filtering by setting up a maximum value", options=columns)
+    filter_columns = st.multiselect("Select columns for **manually** filtering by setting up the maximum value for the column", options=columns)
     filter_values = {}
 
     # Display selected columns and values for each selected column
     for col in filter_columns:
         modified_col, event_type_filter = modify_column_names(col)
         if modified_col == 'labor_duration':
-            filter_values[col] = st.number_input(f"Enter maximum value for {event_type_filter}_{modified_col}", min_value=0.0)
-            filtered_count = df[(df[modified_col] > filter_values[col]) & (df['event_type'] == event_type_filter)].shape[0]
+            filter_values[col] = st.number_input(f"Enter maximum fixed value for {event_type_filter}_{modified_col}, minimum value set to be 0", min_value=0.0)
         else:
-            filter_values[col] = st.number_input(f"Enter maximum value for {modified_col}", min_value=0.0)
-            filtered_count = df[df[modified_col] > filter_values[col]].shape[0]
-        st.write(f"Filtered out rows: {filtered_count}")
+            filter_values[col] = st.number_input(f"Enter maximum fixed value for {modified_col}, minimum value set to be 0", min_value=0.0)
 
     filtered_df = df.copy()
     sorted_columns = []
@@ -329,6 +325,7 @@ if uploaded_file:
     for col, value in filter_values.items():
         modified_col, event_type_filter = modify_column_names(col)
         if event_type_filter:
+            # Keep the other event type and filter the second ones
             filtered_df = filtered_df[((filtered_df['event_type'] != event_type_filter) | ((filtered_df['event_type'] == event_type_filter) & (filtered_df[modified_col] <= value)))]
         else:
             filtered_df = filtered_df[filtered_df[modified_col] <= value]
@@ -341,37 +338,29 @@ if uploaded_file:
 
     if len(sorted_columns) != 0 and filter_columns:
         filtered_df = filtered_df.sort_values(by=sorted_columns, ascending=False)
-        st.subheader("Filtered DataFrame:")
-        st.write(filtered_df[all_columns].head(100))
-        # Display the total filtered percentage above the download file button
-        total_filtered_percentage = round(((total_rows - filtered_df.shape[0]) / total_rows) * 100,2)
-        st.subheader("Total Filtered:")
-        st.write(f"{(total_rows - filtered_df.shape[0])} rows were filtered out")
-        st.write(f"{total_filtered_percentage}% of total rows were filtered out")
+        Filtered_DataFrame_check_box = st.checkbox(label="Display the filtered data frame")
+        if Filtered_DataFrame_check_box:
+            st.subheader("Filtered DataFrame:")
+            st.write(filtered_df[all_columns].head(100))
 
     automatic_filter_columns = st.multiselect("Select columns for **automatic** filtering", options=columns)
     automatic_filter_values = {}
 
-    for col in automatic_filter_columns:
-        automatic_filter_values[col] = None
-
-    # Display buttons for automatic filtering actions
-    if automatic_filter_columns:
-        st.subheader("Automatic Filtering Information:")
+    if automatic_filter_columns or filter_columns:
+        total_filtered_columns = automatic_filter_columns + filter_columns
+        st.subheader("Filtering Information:")
         info_table_data = []
 
-        for col in automatic_filter_columns:
+        for col in total_filtered_columns:
             modified_col, event_type_filter = modify_column_names(col)
             filtered_df_copy = filtered_df.copy()
             if event_type_filter:
-                filtered_df_copy = filtered_df[filtered_df['event_type'] == event_type_filter]
-
+                filtered_df_copy = filtered_df_copy[filtered_df_copy['event_type'] == event_type_filter]
             if chosen_method == 'Interquartile Range':
                 median,lower_fence,upper_fence = calculate_IQR(filtered_df_copy,modified_col)
             if chosen_method == 'Percentile Based':
                 median,lower_fence,upper_fence = calculate_percentiles_method(filtered_df_copy,modified_col,top_percentile,bottom_percentile)
             formatted_median = "{:.0f}".format(median)
-
 
             # Count outliers
             num_above_fence = filtered_df_copy[filtered_df_copy[modified_col] > upper_fence].shape[0]
@@ -386,9 +375,9 @@ if uploaded_file:
             formatted_sum_below_fence= "{:,.0f}".format(sum_below_fence)
 
             # Calculate percentages
-            total_rows = filtered_df.shape[0]
-            percent_above_fence = (num_above_fence / total_rows) * 100
-            percent_below_fence = (num_below_fence / total_rows) * 100
+            total_filtered_rows = filtered_df_copy.shape[0]
+            percent_above_fence = (num_above_fence / total_filtered_rows) * 100
+            percent_below_fence = (num_below_fence / total_filtered_rows) * 100
 
             formatted_upper_fence = "{:,.0f}".format(upper_fence)
             formatted_lower_fence = "{:,.0f}".format(lower_fence)
@@ -409,8 +398,9 @@ if uploaded_file:
         info_table_df = pd.DataFrame(info_table_data)
         st.table(info_table_df)
 
+    for col in automatic_filter_columns:
+        automatic_filter_values[col] = None
         # Continue displaying buttons for automatic filtering actions
-        
         replace_with_fences_button = st.button("Replace outliers with Fences Values")
         replace_with_median_button = st.button("Replace outliers with Median")
         remove_outliers_button = st.button("Remove All Outliers")
@@ -418,14 +408,14 @@ if uploaded_file:
         if remove_outliers_button or replace_with_fences_button or replace_with_median_button:
             for col in automatic_filter_columns:
                 modified_col, event_type_filter = modify_column_names(col)
-                filtered_df_copy = filtered_df.copy()
+                # filtered_df_copy = filtered_df.copy()
                 if event_type_filter:
-                    filtered_df_copy = filtered_df[filtered_df['event_type'] == event_type_filter]
+                    filtered_df = filtered_df[filtered_df['event_type'] == event_type_filter]
 
                 if chosen_method == 'Interquartile Range':
-                    median,lower_fence,upper_fence = calculate_IQR(filtered_df_copy,modified_col)
+                    median,lower_fence,upper_fence = calculate_IQR(filtered_df,modified_col)
                 if chosen_method == 'Percentile Based':
-                    median,lower_fence,upper_fence = calculate_percentiles_method(filtered_df_copy,modified_col,top_percentile,bottom_percentile)
+                    median,lower_fence,upper_fence = calculate_percentiles_method(filtered_df,modified_col,top_percentile,bottom_percentile)
 
                 action = None  # Initialize action variable
 
@@ -449,7 +439,7 @@ if uploaded_file:
                 else:
                     if remove_outliers_button:
                     # Remove outliers for specific event_type_filter or all
-                        filtered_df.loc[modified_col] = filtered_df.loc[mask, modified_col].apply(lambda x: x if (x >= lower_fence and x <= upper_fence) else x)
+                        filtered_df = filtered_df[(filtered_df[modified_col] >= lower_fence) & (filtered_df[modified_col] <= upper_fence)]
                         action = 'Remove_outliers_'
                     elif replace_with_fences_button:
                         # Replace outliers with fences values for specific event_type_filter or all
@@ -475,6 +465,13 @@ if uploaded_file:
     csv_data = filtered_df.to_csv(index=False)
 
     download_button_key = "_".join([f"{col}_{value}" for col, value in filter_values.items()])
+
+    # Display the total filtered percentage above the download file button
+    total_filtered_percentage = round(((total_rows - filtered_df.shape[0]) / total_rows) * 100,2)
+    st.subheader("Total Filtered:")
+    formatted_filtered_out_rows = "{:,.0f}".format(total_rows - filtered_df.shape[0])
+    st.write(f"{(formatted_filtered_out_rows)} rows were filtered out, which are {total_filtered_percentage}% of total original file rows")
+
 
     st.download_button(label=f"Download {csv_filename}", data=csv_data, file_name=csv_filename, key=f"download_button_{download_button_key}")
 
