@@ -52,7 +52,7 @@ def format_and_display_table(data, title, column_str, id_column):
     formatted_table = formatted_table[[id_column, column_str]]
     st.table(formatted_table)
 
-def boxplotter(column_str, data,median,lower_fence,upper_fence):
+def boxplotter(column_str, data):
     modified_col, event_type_filter = modify_column_names(column_str)
     
     filtered_data = data
@@ -69,6 +69,8 @@ def boxplotter(column_str, data,median,lower_fence,upper_fence):
     # Create the box plot
     plot = px.box(data_frame=filtered_data, y=modified_col)
     st.plotly_chart(plot, theme="streamlit", use_container_width=True)
+
+    median,lower_fence,upper_fence = calculate_IQR(filtered_data,modified_col)
 
     # Display fences and median in a table
     fences_median_df = pd.DataFrame({
@@ -276,10 +278,6 @@ if uploaded_file:
     data = df
     
     st.title("Settings")
-    outlier_finiding_methods = ['Interquartile Range','Percentile Based']
-    chosen_method = st.selectbox(label="Select outlier finding method", options=outlier_finiding_methods)  
-    if chosen_method == 'Percentile Based':
-        bottom_percentile,top_percentile = st.slider("Please select a range of values for top and bottom percentiles", 0, 100, (5,95))
 
     check_box1 = st.checkbox(label="Display a random dataset sample")
     if check_box1:
@@ -298,19 +296,20 @@ if uploaded_file:
     
     if plot_selection:
         for col in plot_selection:
-            if chosen_method == 'Interquartile Range':
-                median,lower_fence,upper_fence = calculate_IQR(data,col)
-            if chosen_method == 'Percentile Based':
-                median,lower_fence,upper_fence = calculate_percentiles_method(data,col,top_percentile,bottom_percentile)
-            
-            boxplotter(col, data,median,lower_fence,upper_fence)
+            boxplotter(col, data)
             histogram(col, data)
             bar_chart_sum_vs_non_outliers(data, col)
 
 
     st.title("Filter Data")
     st.markdown("Here you can filter out values, and remove outlier rows")
-    filter_columns = st.multiselect("Select columns for **manually** filtering", options=columns)
+
+    outlier_finiding_methods = ['Interquartile Range','Percentile Based']
+    chosen_method = st.selectbox(label="Select outlier finding method, this will determine the outlier classification", options=outlier_finiding_methods)  
+    if chosen_method == 'Percentile Based':
+        bottom_percentile,top_percentile = st.slider("Please select a range of values for top and bottom percentiles", 0, 100, (5,95))
+
+    filter_columns = st.multiselect("Select columns for **manually** filtering by setting up a maximum value", options=columns)
     filter_values = {}
 
     # Display selected columns and values for each selected column
@@ -367,13 +366,10 @@ if uploaded_file:
             if event_type_filter:
                 filtered_df_copy = filtered_df[filtered_df['event_type'] == event_type_filter]
 
-            # Calculate fences and median
-            Q1 = filtered_df_copy[modified_col].quantile(0.25)
-            Q3 = filtered_df_copy[modified_col].quantile(0.75)
-            IQR = Q3 - Q1
-            lower_fence = max(Q1 - 1.5 * IQR, 0)
-            upper_fence = Q3 + 1.5 * IQR
-            median = filtered_df_copy[modified_col].median()
+            if chosen_method == 'Interquartile Range':
+                median,lower_fence,upper_fence = calculate_IQR(filtered_df_copy,modified_col)
+            if chosen_method == 'Percentile Based':
+                median,lower_fence,upper_fence = calculate_percentiles_method(filtered_df_copy,modified_col,top_percentile,bottom_percentile)
             formatted_median = "{:.0f}".format(median)
 
 
@@ -408,8 +404,7 @@ if uploaded_file:
                 'Sum of Outliers Above Fence Values' : formatted_sum_above_fence,
                 'Number Of Outliers Below Fence': formatted_num_below_fence,
                 'Percentage Out Of All Data (Outliers Below Fence)': f"{percent_below_fence:.2f}%",
-                'Sum of Outliers Below Fence Values' : formatted_sum_below_fence
-            })
+                'Sum of Outliers Below Fence Values' : formatted_sum_below_fence})
 
         info_table_df = pd.DataFrame(info_table_data)
         st.table(info_table_df)
@@ -427,13 +422,10 @@ if uploaded_file:
                 if event_type_filter:
                     filtered_df_copy = filtered_df[filtered_df['event_type'] == event_type_filter]
 
-                # Calculate fences and median
-                Q1 = filtered_df_copy[modified_col].quantile(0.25)
-                Q3 = filtered_df_copy[modified_col].quantile(0.75)
-                IQR = Q3 - Q1
-                lower_fence = max(Q1 - 1.5 * IQR, 0)
-                upper_fence = Q3 + 1.5 * IQR
-                median = filtered_df_copy[modified_col].median()
+                if chosen_method == 'Interquartile Range':
+                    median,lower_fence,upper_fence = calculate_IQR(filtered_df_copy,modified_col)
+                if chosen_method == 'Percentile Based':
+                    median,lower_fence,upper_fence = calculate_percentiles_method(filtered_df_copy,modified_col,top_percentile,bottom_percentile)
 
                 action = None  # Initialize action variable
 
@@ -483,6 +475,9 @@ if uploaded_file:
     csv_data = filtered_df.to_csv(index=False)
 
     download_button_key = "_".join([f"{col}_{value}" for col, value in filter_values.items()])
+
+    st.download_button(label=f"Download {csv_filename}", data=csv_data, file_name=csv_filename, key=f"download_button_{download_button_key}")
+
     # Additional Graphs
     st.title("Additional Graphs")
     EC_stacked_graph_check_box = st.checkbox(label="Display a stacked graph of event category per year")
