@@ -270,7 +270,13 @@ if not uploaded_file:
     st.write('To start analysis upload your data')
 
 if uploaded_file:
-    st.write('Please select the wanted functions, the script will analyze only service events.')
+    opening = ('''Please select the wanted functions, the script will analyze only service events. 
+             Main purpose of this page is too easy locate outliers and filter columns.''')
+    
+    lines = opening.split('\n')
+    for line in lines:
+        st.write(line)
+
     df = pd.read_csv(uploaded_file, low_memory=False)
     full_df = df.copy()
     df = df[df['event_category'] == 'service']
@@ -314,14 +320,20 @@ if uploaded_file:
     # Display selected columns and values for each selected column
     for col in filter_columns:
         modified_col, event_type_filter = modify_column_names(col)
-        if chosen_method == 'Interquartile Range':
-            upper_fence = calculate_IQR(data,modified_col)[2]
-        if chosen_method == 'Percentile Based':
-            upper_fence = calculate_percentiles_method(data,modified_col,top_percentile,bottom_percentile)[2]
-        if modified_col == 'labor_duration':
-            filter_values[col] = st.number_input(f"Enter maximum fixed value for {event_type_filter}_{modified_col}, minimum value set to be 0", min_value=0.0,value = upper_fence)
+        data_filter = data.copy()
+        if event_type_filter:
+            data_filter = data_filter[data_filter['event_type'] == event_type_filter]
+            if chosen_method == 'Interquartile Range':
+                median,lower_fence,upper_fence = calculate_IQR(data_filter,modified_col)
+            if chosen_method == 'Percentile Based':
+                median,lower_fence,upper_fence = calculate_percentiles_method(data_filter,modified_col,top_percentile,bottom_percentile)
+            filter_values[col] = st.number_input(f"Enter maximum fixed value for {event_type_filter}_{modified_col}, minimum value set to be 0", min_value=0.0,value = round(upper_fence,2))
         else:
-            filter_values[col] = st.number_input(f"Enter maximum fixed value for {modified_col}, minimum value set to be 0", min_value=0.0,value = upper_fence)
+            if chosen_method == 'Interquartile Range':
+                median,lower_fence,upper_fence = calculate_IQR(data,modified_col)
+            if chosen_method == 'Percentile Based':
+                median,lower_fence,upper_fence = calculate_percentiles_method(data,modified_col,top_percentile,bottom_percentile)
+            filter_values[col] = st.number_input(f"Enter maximum fixed value for {modified_col}, minimum value set to be 0", min_value=0.0,value = round(upper_fence,2))
 
     filtered_df = df.copy()
 
@@ -343,38 +355,39 @@ if uploaded_file:
 
         for col in total_filtered_columns:
             modified_col, event_type_filter = modify_column_names(col)
-            filtered_df_copy = filtered_df.copy()
+            df_copy = df.copy()
+
             if event_type_filter:
-                filtered_df_copy = filtered_df_copy[filtered_df_copy['event_type'] == event_type_filter]
+                df_copy = df_copy[df_copy['event_type'] == event_type_filter]
             if chosen_method == 'Interquartile Range':
-                median,lower_fence,upper_fence = calculate_IQR(filtered_df_copy,modified_col)
+                median,lower_fence,upper_fence = calculate_IQR(df_copy,modified_col)
             if chosen_method == 'Percentile Based':
-                median,lower_fence,upper_fence = calculate_percentiles_method(filtered_df_copy,modified_col,top_percentile,bottom_percentile)
-            formatted_median = "{:.0f}".format(median)
+                median,lower_fence,upper_fence = calculate_percentiles_method(df_copy,modified_col,top_percentile,bottom_percentile)
+
+            formatted_median = "{:,.2f}".format(median)
+            formatted_upper_fence = "{:,.2f}".format(upper_fence)
+            formatted_lower_fence = "{:,.2f}".format(lower_fence)
 
             # Count outliers
-            num_above_fence = filtered_df_copy[filtered_df_copy[modified_col] > upper_fence].shape[0]
+            num_above_fence = df_copy[df_copy[modified_col] > upper_fence].shape[0]
             formatted_num_above_fence= "{:,.0f}".format(num_above_fence)
-            num_below_fence = filtered_df_copy[filtered_df_copy[modified_col] < lower_fence].shape[0]
+            num_below_fence = df_copy[df_copy[modified_col] < lower_fence].shape[0]
             formatted_num_below_fence= "{:,.0f}".format(num_below_fence)
 
-            sum_above_fence = filtered_df_copy[filtered_df_copy[modified_col] > upper_fence]['total_labor_cost'].sum()
+            sum_above_fence = df_copy[df_copy[modified_col] > upper_fence]['total_labor_cost'].sum()
             formatted_sum_above_fence= "{:,.0f}".format(sum_above_fence)
 
-            sum_below_fence = filtered_df_copy[filtered_df_copy[modified_col] < lower_fence]['total_labor_cost'].sum()
+            sum_below_fence = df_copy[df_copy[modified_col] < lower_fence]['total_labor_cost'].sum()
             formatted_sum_below_fence= "{:,.0f}".format(sum_below_fence)
 
             # Calculate percentages
-            total_filtered_rows = filtered_df_copy.shape[0]
+            total_filtered_rows = df_copy.shape[0]
             percent_above_fence = (num_above_fence / total_filtered_rows) * 100
             percent_below_fence = (num_below_fence / total_filtered_rows) * 100
 
-            formatted_upper_fence = "{:,.0f}".format(upper_fence)
-            formatted_lower_fence = "{:,.0f}".format(lower_fence)
-
             # Display in table
             info_table_data.append({
-                'Column': col,
+                'Column Name': col,
                 'Median': formatted_median,
                 'Lower Fence Value': formatted_lower_fence,
                 'Upper Fence Value': formatted_upper_fence,
