@@ -313,49 +313,18 @@ if uploaded_file:
     chosen_method = st.selectbox(label="Select outlier finding method, this will determine the outlier classification", options=outlier_finiding_methods)  
     if chosen_method == 'Percentile Based':
         bottom_percentile,top_percentile = st.slider("Please select a range of values for top and bottom percentiles", 0, 100, (5,95))
-
-    filter_columns = st.multiselect("Select columns for **manually** filtering by setting up the maximum value for the column", options=columns)
+    
+    filter_columns = st.multiselect("Select columns for filtering", options=columns)
     filter_values = {}
+    fixed_maximum_values = {}
 
-    # Display selected columns and values for each selected column
-    for col in filter_columns:
-        modified_col, event_type_filter = modify_column_names(col)
-        data_filter = data.copy()
-        if event_type_filter:
-            data_filter = data_filter[data_filter['event_type'] == event_type_filter]
-            if chosen_method == 'Interquartile Range':
-                median,lower_fence,upper_fence = calculate_IQR(data_filter,modified_col)
-            if chosen_method == 'Percentile Based':
-                median,lower_fence,upper_fence = calculate_percentiles_method(data_filter,modified_col,top_percentile,bottom_percentile)
-            filter_values[col] = st.number_input(f"Enter maximum fixed value for {event_type_filter}_{modified_col}, minimum value set to be 0", min_value=0.0,value = round(upper_fence,2))
-        else:
-            if chosen_method == 'Interquartile Range':
-                median,lower_fence,upper_fence = calculate_IQR(data,modified_col)
-            if chosen_method == 'Percentile Based':
-                median,lower_fence,upper_fence = calculate_percentiles_method(data,modified_col,top_percentile,bottom_percentile)
-            filter_values[col] = st.number_input(f"Enter maximum fixed value for {modified_col}, minimum value set to be 0", min_value=0.0,value = round(upper_fence,2))
-
-    filtered_df = df.copy()
-
-    for col, value in filter_values.items():
-        modified_col, event_type_filter = modify_column_names(col)
-        if event_type_filter:
-            # Keep the other event type and filter the second ones
-            filtered_df = filtered_df[((filtered_df['event_type'] != event_type_filter) | ((filtered_df['event_type'] == event_type_filter) & (filtered_df[modified_col] <= value)))]
-        else:
-            filtered_df = filtered_df[filtered_df[modified_col] <= value]
-
-    automatic_filter_columns = st.multiselect("Select columns for **automatic** filtering", options=columns)
-    automatic_filter_values = {}
-
-    if automatic_filter_columns or filter_columns:
-        total_filtered_columns = automatic_filter_columns + filter_columns
+    if filter_columns:
         st.subheader("Filtering Information:")
         info_table_data = []
 
-        for col in total_filtered_columns:
+        for col in filter_columns:
             modified_col, event_type_filter = modify_column_names(col)
-            df_copy = df.copy()
+            df_copy = data.copy()
 
             if event_type_filter:
                 df_copy = df_copy[df_copy['event_type'] == event_type_filter]
@@ -401,17 +370,19 @@ if uploaded_file:
         info_table_df = pd.DataFrame(info_table_data)
         st.table(info_table_df)
 
-    for col in automatic_filter_columns:
-        automatic_filter_values[col] = None
+    for col in filter_columns:
+        filter_values[col] = None
+        fixed_value_flag = False # Initialize flag variable
         # Continue displaying buttons for automatic filtering actions
         replace_with_fences_button = st.button("Replace outliers with Fences Values")
         replace_with_median_button = st.button("Replace outliers with Median")
         remove_outliers_button = st.button("Remove All Outliers")
+        fixed_max_value_button = st.checkbox("Set Maximum Fixed Value")
 
-        if remove_outliers_button or replace_with_fences_button or replace_with_median_button:
-            for col in automatic_filter_columns:
+        if remove_outliers_button or replace_with_fences_button or replace_with_median_button or fixed_max_value_button:
+            for col in filter_columns:
                 modified_col, event_type_filter = modify_column_names(col)
-                # filtered_df_copy = filtered_df.copy()
+                filtered_df = data.copy()
                 if event_type_filter:
                     filtered_df = filtered_df[filtered_df['event_type'] == event_type_filter]
 
@@ -421,6 +392,7 @@ if uploaded_file:
                     median,lower_fence,upper_fence = calculate_percentiles_method(filtered_df,modified_col,top_percentile,bottom_percentile)
 
                 action = None  # Initialize action variable
+                
 
                 # Create a mask based on event_type_filter (if present)
                 if event_type_filter:
@@ -439,6 +411,13 @@ if uploaded_file:
                         filtered_df.loc[mask & (filtered_df[modified_col] < lower_fence), modified_col] = median
                         filtered_df.loc[mask & (filtered_df[modified_col] > upper_fence), modified_col] = median
                         action = 'Replace_outliers_with_median_'
+                    elif fixed_max_value_button:
+                        # Display selected columns and values for each selected column
+                        fixed_maximum_values[col] = st.number_input(f"Enter maximum fixed value for {event_type_filter}_{modified_col}, minimum value set to be 0", min_value=0.0,value = round(upper_fence,2))
+                        # Keep the other event type and filter the second ones
+                        filtered_df = filtered_df[((filtered_df['event_type'] != event_type_filter) | ((filtered_df['event_type'] == event_type_filter) & (filtered_df[modified_col] <= fixed_maximum_values[col])))]
+                        action = 'Set_fixed_maximum_value_'
+                        fixed_value_flag = True                      
                 else:
                     if remove_outliers_button:
                     # Remove outliers for specific event_type_filter or all
@@ -454,29 +433,35 @@ if uploaded_file:
                         filtered_df.loc[(filtered_df[modified_col] < lower_fence), modified_col] = median
                         filtered_df.loc[(filtered_df[modified_col] > upper_fence), modified_col] = median
                         action = 'Replace_outliers_with_median_'
+                    elif fixed_max_value_button:
+                        fixed_maximum_values[col] = st.number_input(f"Enter maximum fixed value for {modified_col}, minimum value set to be 0", min_value=0.0,value = round(upper_fence,2))
+                        filtered_df = filtered_df[filtered_df[modified_col] <= fixed_maximum_values[col]]
+                        action = 'Set_fixed_maximum_value_'
+                        fixed_value_flag = True
 
-    csv_filename = f"sc_events_filtered_"
-    if automatic_filter_columns:
-        if remove_outliers_button or replace_with_fences_button or replace_with_median_button:
-            if action:
-                csv_filename+= action
-                csv_filename += "_".join([f"{col}" for col in automatic_filter_values.keys()])
-                
+        csv_filename = f"sc_events_filtered_"
+        if filter_columns:
+            if remove_outliers_button or replace_with_fences_button or replace_with_median_button:
+                if action:
+                    csv_filename+= action
+                    csv_filename += "_".join([f"{col}" for col in filter_values.keys()])
+            if fixed_value_flag:   
+                    if action:
+                        csv_filename+= action
+                        csv_filename += "_".join([f"{col}_{round(value,2)}" for col, value in fixed_maximum_values.items()])
+            csv_filename += ".csv"
 
-    csv_filename += "_".join([f"{col}_{value}" for col, value in filter_values.items()])
-    csv_filename += ".csv"
-    csv_data = filtered_df.to_csv(index=False)
+            download_button_key = "_".join([f"{col}_{value}" for col, value in filter_values.items()])
 
-    download_button_key = "_".join([f"{col}_{value}" for col, value in filter_values.items()])
+        # Display the total filtered percentage above the download file button
+        if remove_outliers_button or replace_with_fences_button or replace_with_median_button or fixed_value_flag:
+            total_filtered_percentage = round(((total_rows - filtered_df.shape[0]) / total_rows) * 100,2)
+            st.subheader("Total Filtered:")
+            formatted_filtered_out_rows = "{:,.0f}".format(total_rows - filtered_df.shape[0])
+            st.write(f"{(formatted_filtered_out_rows)} rows were filtered out, which are {total_filtered_percentage}% of total original file rows")
 
-    # Display the total filtered percentage above the download file button
-    total_filtered_percentage = round(((total_rows - filtered_df.shape[0]) / total_rows) * 100,2)
-    st.subheader("Total Filtered:")
-    formatted_filtered_out_rows = "{:,.0f}".format(total_rows - filtered_df.shape[0])
-    st.write(f"{(formatted_filtered_out_rows)} rows were filtered out, which are {total_filtered_percentage}% of total original file rows")
-
-
-    st.download_button(label=f"Download {csv_filename}", data=csv_data, file_name=csv_filename, key=f"download_button_{download_button_key}")
+            csv_data = filtered_df.to_csv(index=False)
+            st.download_button(label=f"Download {csv_filename}", data=csv_data, file_name=csv_filename, key=f"download_button_{download_button_key}")
 
     # Additional Graphs
     st.title("Additional Graphs")
