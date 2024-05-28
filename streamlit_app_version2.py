@@ -7,14 +7,14 @@ import plotly.express as px
 import numpy as np
 
 def calculate_IQR(data,col):
-    filtered_data = data
+    IQR_data = data.copy()
     modified_col, event_type_filter = modify_column_names(col)
     if event_type_filter:
-        filtered_data = data[data['event_type'] == event_type_filter]
+        IQR_data = data[data['event_type'] == event_type_filter]
     # Calculate the quartiles and fences
-    median = filtered_data[modified_col].median()
-    Q1 = filtered_data[modified_col].quantile(0.25)
-    Q3 = filtered_data[modified_col].quantile(0.75)
+    median = IQR_data[modified_col].median()
+    Q1 = IQR_data[modified_col].quantile(0.25)
+    Q3 = IQR_data[modified_col].quantile(0.75)
     IQR = Q3 - Q1
     lower_fence = max(Q1 - 1.5 * IQR, 0)
     upper_fence = Q3 + 1.5 * IQR
@@ -22,14 +22,14 @@ def calculate_IQR(data,col):
     return median,lower_fence,upper_fence
 
 def calculate_percentiles_method(data,col,top_percentile,bottom_percentile):
-    filtered_data = data
+    percentile_data = data.copy()
     modified_col, event_type_filter = modify_column_names(col)
     if event_type_filter:
-        filtered_data = data[data['event_type'] == event_type_filter]
+        percentile_data = data[data['event_type'] == event_type_filter]
     modified_col = modify_column_names(col)[0]
-    median = filtered_data[modified_col].median()
-    lower_fence = filtered_data[modified_col].quantile(bottom_percentile/100)
-    upper_fence = filtered_data[modified_col].quantile(top_percentile/100)
+    median = percentile_data[modified_col].median()
+    lower_fence = percentile_data[modified_col].quantile(bottom_percentile/100)
+    upper_fence = percentile_data[modified_col].quantile(top_percentile/100)
 
     return median,lower_fence,upper_fence
 
@@ -55,9 +55,9 @@ def format_and_display_table(data, title, column_str, id_column):
 def boxplotter(column_str, data):
     modified_col, event_type_filter = modify_column_names(column_str)
     
-    filtered_data = data
+    boxplot_data = data.copy()
     if event_type_filter:
-        filtered_data = data[data['event_type'] == event_type_filter]
+        boxplot_data = data[data['event_type'] == event_type_filter]
     
     if event_type_filter is not None:
         st.subheader(f"Box Plot of {event_type_filter}_{modified_col}")
@@ -67,10 +67,10 @@ def boxplotter(column_str, data):
     st.write("Data points showing on plot are the values outside of fences")
     
     # Create the box plot
-    plot = px.box(data_frame=filtered_data, y=modified_col)
+    plot = px.box(data_frame=boxplot_data, y=modified_col)
     st.plotly_chart(plot, theme="streamlit", use_container_width=True)
 
-    median,lower_fence,upper_fence = calculate_IQR(filtered_data,modified_col)
+    median,lower_fence,upper_fence = calculate_IQR(boxplot_data,modified_col)
 
     # Display fences and median in a table
     fences_median_df = pd.DataFrame({
@@ -82,8 +82,8 @@ def boxplotter(column_str, data):
     st.table(fences_median_df)
 
     # Identify and display highest and lowest 5 outliers
-    highest_5_outliers = filtered_data[[modified_col, 'investigation_id']].sort_values(by=modified_col, ascending=False).head(5)
-    lowest_5_outliers = filtered_data[[modified_col, 'investigation_id']].sort_values(by=modified_col, ascending=True).head(5)
+    highest_5_outliers = boxplot_data[[modified_col, 'investigation_id']].sort_values(by=modified_col, ascending=False).head(5)
+    lowest_5_outliers = boxplot_data[[modified_col, 'investigation_id']].sort_values(by=modified_col, ascending=True).head(5)
 
     col1, col2 = st.columns(2)
 
@@ -100,19 +100,16 @@ def boxplotter(column_str, data):
 def histogram(column_str, data):
     modified_col, event_type_filter = modify_column_names(column_str)
 
-    filtered_data = data
+    histogram_data = data.copy()
     if event_type_filter:
-        filtered_data = data[data['event_type'] == event_type_filter]
-    
-    if modified_col == 'labor_duration':
-        filtered_data = filtered_data[filtered_data[modified_col] > 0]
+        histogram_data = data[data['event_type'] == event_type_filter]
     if event_type_filter:
         st.subheader(f"Histogram of {event_type_filter}_{modified_col}")
     else:
         st.subheader(f"Histogram of {modified_col}")
     
-    median_val = filtered_data[modified_col].median()
-    plot = px.histogram(data_frame=filtered_data, x=modified_col, nbins=30)
+    median_val = histogram_data[modified_col].median()
+    plot = px.histogram(data_frame=histogram_data, x=modified_col, nbins=30)
     plot.add_vline(x=median_val, line_dash="dash", line_color="red", annotation_text=f'Median: {median_val:.2f}', annotation_position="top left")
 
     # Update the layout to set the y-axis title
@@ -123,39 +120,39 @@ def histogram(column_str, data):
 def bar_chart_sum_vs_non_outliers(data, col):
     modified_col, event_type_filter = modify_column_names(col)
 
-    filtered_data = data
+    bar_chart_data = data.copy()
     if event_type_filter:
-        filtered_data = data[data['event_type'] == event_type_filter]
+        bar_chart_data = data[data['event_type'] == event_type_filter]
     
-    if modified_col == 'labor_duration':
-        filtered_data = filtered_data[filtered_data[modified_col] > 0]
+    # if modified_col == 'labor_duration':
+    #     bar_chart_data = bar_chart_data[bar_chart_data[modified_col] > 0]
     if event_type_filter:
         st.subheader(f"Bar Chart of {event_type_filter}_{modified_col}, comparing with and without outliers values")
     else:
         st.subheader(f"Bar Chart of {modified_col},comparing with and without outliers values")
 
     # Calculate the quartiles and fences
-    Q1 = filtered_data[modified_col].quantile(0.25)
-    Q3 = filtered_data[modified_col].quantile(0.75)
+    Q1 = bar_chart_data[modified_col].quantile(0.25)
+    Q3 = bar_chart_data[modified_col].quantile(0.75)
     IQR = Q3 - Q1
     lower_fence = max(Q1 - 1.5 * IQR, 0)
     upper_fence = Q3 + 1.5 * IQR
 
     # Sum of all values
-    sum_all_values = filtered_data[modified_col].sum()
+    sum_all_values = bar_chart_data[modified_col].sum()
 
     # Sum of non-outlier values
-    non_outliers = filtered_data[(filtered_data[modified_col] >= lower_fence) & (filtered_data[modified_col] <= upper_fence)]
+    non_outliers = bar_chart_data[(bar_chart_data[modified_col] >= lower_fence) & (bar_chart_data[modified_col] <= upper_fence)]
     sum_non_outlier_values = non_outliers[modified_col].sum()
 
     # Prepare filtered_data for Plotly
-    filtered_data = {
+    bar_chart_data = {
         'Category': ['Sum of All Values', 'Sum of Non-Outlier Values'],
         str(modified_col): [sum_all_values, sum_non_outlier_values]
     }
 
     # Create a DataFrame
-    df = pd.DataFrame(filtered_data)
+    df = pd.DataFrame(bar_chart_data)
 
     # Create a bar chart
     fig = px.bar(df, x='Category', y=modified_col, title=f'Sum of Values vs. Non-Outlier Values: {modified_col}', color='Category', text_auto=True)
@@ -271,14 +268,14 @@ if not uploaded_file:
 
 if uploaded_file:
     opening = ('''Please select the wanted functions, the script will analyze only service events. 
-             Main purpose of this page is too easy locate outliers and filter columns.''')
+             Main purpose of this page is to locate outliers and filter them as needed.''')
     
     lines = opening.split('\n')
     for line in lines:
         st.write(line)
 
     df = pd.read_csv(uploaded_file, low_memory=False)
-    full_df = df.copy()
+    full_df = df.copy() # Needed for event category stacked graph
     df = df[df['event_category'] == 'service']
     total_rows = df.shape[0]
     data = df
@@ -323,8 +320,8 @@ if uploaded_file:
         info_table_data = []
 
         for col in filter_columns:
+            df_copy = data.copy() #Used for filtering information section
             modified_col, event_type_filter = modify_column_names(col)
-            df_copy = data.copy()
 
             if event_type_filter:
                 df_copy = df_copy[df_copy['event_type'] == event_type_filter]
@@ -343,16 +340,20 @@ if uploaded_file:
             num_below_fence = df_copy[df_copy[modified_col] < lower_fence].shape[0]
             formatted_num_below_fence= "{:,.0f}".format(num_below_fence)
 
-            sum_above_fence = df_copy[df_copy[modified_col] > upper_fence]['total_labor_cost'].sum()
+            sum_above_fence = df_copy[df_copy[modified_col] > upper_fence][modified_col].sum()
             formatted_sum_above_fence= "{:,.0f}".format(sum_above_fence)
 
-            sum_below_fence = df_copy[df_copy[modified_col] < lower_fence]['total_labor_cost'].sum()
+            sum_below_fence = df_copy[df_copy[modified_col] < lower_fence][modified_col].sum()
             formatted_sum_below_fence= "{:,.0f}".format(sum_below_fence)
 
             # Calculate percentages
             total_filtered_rows = df_copy.shape[0]
-            percent_above_fence = (num_above_fence / total_filtered_rows) * 100
-            percent_below_fence = (num_below_fence / total_filtered_rows) * 100
+            if total_filtered_rows != 0:
+                percent_above_fence = (num_above_fence / total_filtered_rows) * 100
+                percent_below_fence = (num_below_fence / total_filtered_rows) * 100
+            else:
+                percent_above_fence = 0
+                percent_below_fence = 0
 
             # Display in table
             info_table_data.append({
@@ -370,19 +371,22 @@ if uploaded_file:
         info_table_df = pd.DataFrame(info_table_data)
         st.table(info_table_df)
 
+    filtered_df = data.copy()
+
     for col in filter_columns:
         filter_values[col] = None
         fixed_value_flag = False # Initialize flag variable
         # Continue displaying buttons for automatic filtering actions
-        replace_with_fences_button = st.button("Replace outliers with Fences Values")
-        replace_with_median_button = st.button("Replace outliers with Median")
-        remove_outliers_button = st.button("Remove All Outliers")
-        fixed_max_value_button = st.checkbox("Set Maximum Fixed Value")
+        st.subheader(col)
+        replace_with_fences_button = st.button("Replace outliers with Fences Values",key = str(col)+'replace_with_fences_button')
+        replace_with_median_button = st.button("Replace outliers with Median",key = str(col)+'replace_with_median_button')
+        remove_outliers_button = st.button("Remove All Outliers",key = str(col)+'remove_outliers_button')
+        fixed_max_value_button = st.checkbox("Set Maximum Fixed Value",key = str(col)+'fixed_max_value_button')
 
         if remove_outliers_button or replace_with_fences_button or replace_with_median_button or fixed_max_value_button:
             for col in filter_columns:
                 modified_col, event_type_filter = modify_column_names(col)
-                filtered_df = data.copy()
+                # filtered_df = data.copy()
                 if event_type_filter:
                     filtered_df = filtered_df[filtered_df['event_type'] == event_type_filter]
 
@@ -398,9 +402,14 @@ if uploaded_file:
                 if event_type_filter:
                     mask = (filtered_df['event_type'] == event_type_filter)
                     if remove_outliers_button:
-                        # Remove outliers for specific event_type_filter or all
-                        filtered_df.loc[mask, modified_col] = filtered_df.loc[mask, modified_col].apply(lambda x: x if (x >= lower_fence and x <= upper_fence) else x)
+                        # Create a mask to identify outliers
+                        outlier_mask = (filtered_df[modified_col] < lower_fence) | (filtered_df[modified_col] > upper_fence)
+                        # Combine the masks
+                        combined_mask = mask & outlier_mask
+                        # Remove rows that match the combined mask
+                        filtered_df = filtered_df.drop(filtered_df[combined_mask].index)
                         action = 'Remove_outliers_'
+                        st.write(filtered_df.shape)
                     elif replace_with_fences_button:
                         # Replace outliers with fences values for specific event_type_filter or all
                         filtered_df.loc[mask & (filtered_df[modified_col] < lower_fence), modified_col] = lower_fence
@@ -420,8 +429,10 @@ if uploaded_file:
                         fixed_value_flag = True                      
                 else:
                     if remove_outliers_button:
-                    # Remove outliers for specific event_type_filter or all
-                        filtered_df = filtered_df[(filtered_df[modified_col] >= lower_fence) & (filtered_df[modified_col] <= upper_fence)]
+                        # Create a mask to identify outliers
+                        outlier_mask = (filtered_df[modified_col] < lower_fence) | (filtered_df[modified_col] > upper_fence)                        
+                        # Remove rows that match the combined mask
+                        filtered_df = filtered_df.drop(filtered_df[outlier_mask].index)                        
                         action = 'Remove_outliers_'
                     elif replace_with_fences_button:
                         # Replace outliers with fences values for specific event_type_filter or all
@@ -455,6 +466,7 @@ if uploaded_file:
 
         # Display the total filtered percentage above the download file button
         if remove_outliers_button or replace_with_fences_button or replace_with_median_button or fixed_value_flag:
+            st.write(filtered_df.shape)
             total_filtered_percentage = round(((total_rows - filtered_df.shape[0]) / total_rows) * 100,2)
             st.subheader("Total Filtered:")
             formatted_filtered_out_rows = "{:,.0f}".format(total_rows - filtered_df.shape[0])
