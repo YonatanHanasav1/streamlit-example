@@ -362,10 +362,10 @@ if uploaded_file:
                 'Lower Fence Value': formatted_lower_fence,
                 'Upper Fence Value': formatted_upper_fence,
                 'Number Of Outliers Above Fence': formatted_num_above_fence,
-                'Percentage Out Of All Data (Outliers Above Fence)': f"{percent_above_fence:.2f}%",
+                'Percentage Out Of All Data Rows (Outliers Above Fence)': f"{percent_above_fence:.2f}%",
                 'Sum of Outliers Above Fence Values' : formatted_sum_above_fence,
                 'Number Of Outliers Below Fence': formatted_num_below_fence,
-                'Percentage Out Of All Data (Outliers Below Fence)': f"{percent_below_fence:.2f}%",
+                'Percentage Out Of All Data Rows (Outliers Below Fence)': f"{percent_below_fence:.2f}%",
                 'Sum of Outliers Below Fence Values' : formatted_sum_below_fence})
 
         info_table_df = pd.DataFrame(info_table_data)
@@ -386,30 +386,27 @@ if uploaded_file:
         if remove_outliers_button or replace_with_fences_button or replace_with_median_button or fixed_max_value_button:
             for col in filter_columns:
                 modified_col, event_type_filter = modify_column_names(col)
-                # filtered_df = data.copy()
+                filtered_df_copy = data.copy()
                 if event_type_filter:
-                    filtered_df = filtered_df[filtered_df['event_type'] == event_type_filter]
-
+                    filtered_df_copy = filtered_df_copy[filtered_df_copy['event_type'] == event_type_filter]
                 if chosen_method == 'Interquartile Range':
-                    median,lower_fence,upper_fence = calculate_IQR(filtered_df,modified_col)
+                    median,lower_fence,upper_fence = calculate_IQR(filtered_df_copy,modified_col)
                 if chosen_method == 'Percentile Based':
-                    median,lower_fence,upper_fence = calculate_percentiles_method(filtered_df,modified_col,top_percentile,bottom_percentile)
+                    median,lower_fence,upper_fence = calculate_percentiles_method(filtered_df_copy,modified_col,top_percentile,bottom_percentile)
 
                 action = None  # Initialize action variable
-                
 
                 # Create a mask based on event_type_filter (if present)
                 if event_type_filter:
-                    mask = (filtered_df['event_type'] == event_type_filter)
+                    mask = (filtered_df['event_type'] == event_type_filter)                    
                     if remove_outliers_button:
-                        # Create a mask to identify outliers
-                        outlier_mask = (filtered_df[modified_col] < lower_fence) | (filtered_df[modified_col] > upper_fence)
-                        # Combine the masks
-                        combined_mask = mask & outlier_mask
-                        # Remove rows that match the combined mask
-                        filtered_df = filtered_df.drop(filtered_df[combined_mask].index)
+                        filtered_df['flag'] = 0
+                        # Set the 'flag' column to 1 where the condition is met
+                        filtered_df.loc[
+                        (filtered_df[modified_col] > upper_fence) & 
+                        (filtered_df['event_type'] == event_type_filter), 'flag'] = 1
+                        filtered_df = filtered_df[filtered_df['flag']!= 1]
                         action = 'Remove_outliers_'
-                        st.write(filtered_df.shape)
                     elif replace_with_fences_button:
                         # Replace outliers with fences values for specific event_type_filter or all
                         filtered_df.loc[mask & (filtered_df[modified_col] < lower_fence), modified_col] = lower_fence
@@ -465,8 +462,7 @@ if uploaded_file:
             download_button_key = "_".join([f"{col}_{value}" for col, value in filter_values.items()])
 
         # Display the total filtered percentage above the download file button
-        if remove_outliers_button or replace_with_fences_button or replace_with_median_button or fixed_value_flag:
-            st.write(filtered_df.shape)
+        if remove_outliers_button or replace_with_fences_button or replace_with_median_button or fixed_value_flag:            
             total_filtered_percentage = round(((total_rows - filtered_df.shape[0]) / total_rows) * 100,2)
             st.subheader("Total Filtered:")
             formatted_filtered_out_rows = "{:,.0f}".format(total_rows - filtered_df.shape[0])
