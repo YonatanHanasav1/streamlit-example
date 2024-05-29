@@ -170,8 +170,15 @@ def bar_chart_sum_vs_non_outliers(data, col):
     st.markdown(f'Outliers values adding up {formatted_difference_of_change} {units} which is {percentage_of_change}% out of total column sum of values')
 
 def stacked_graph(data, column):
+    # Convert 'visit_date' to datetime 
+    data['visit_date'] = pd.to_datetime(data['visit_date'])
     # Extract year from the date column
-    data['year'] = pd.to_datetime(data['visit_date']).dt.year
+    data['year'] = data['visit_date'].dt.year
+    data['month'] = data['visit_date'].dt.month
+    # Group by year and month and count the number of records
+    monthly_counts = data.groupby(['year', 'month']).size().reset_index(name='counts')
+    # Get the unique years in the dataset
+    years = monthly_counts['year'].unique()
 
     # Group data by year and specified column and count occurrences
     stacked_data = data.groupby(['year', column]).size().unstack(fill_value=0)
@@ -198,9 +205,26 @@ def stacked_graph(data, column):
 
     st.plotly_chart(fig)
 
+    # Loop through each year and check if all 12 months are present
+    for year in years:
+        year_data = monthly_counts[monthly_counts['year'] == year]
+        
+        if len(year_data) == 12 and set(year_data['month']) == set(range(1, 13)):
+            pass
+        else:
+            missing_months = set(range(1, 13)) - set(year_data['month'])
+            st.write(f"Please notice that year {year} is missing data for months: {sorted(missing_months)}")
+
 def stacked_sum_graph(data, columns):
+     # Convert 'visit_date' to datetime 
+    data['visit_date'] = pd.to_datetime(data['visit_date'])
     # Extract year from the date column
-    data['year'] = pd.to_datetime(data['visit_date']).dt.year
+    data['year'] = data['visit_date'].dt.year
+    data['month'] = data['visit_date'].dt.month
+    # Group by year and month and count the number of records
+    monthly_counts = data.groupby(['year', 'month']).size().reset_index(name='counts')
+    # Get the unique years in the dataset
+    years = monthly_counts['year'].unique()
 
     # Group data by year and sum up values for each column
     summed_data = data.groupby('year')[columns].sum()
@@ -219,9 +243,26 @@ def stacked_sum_graph(data, columns):
 
     st.plotly_chart(fig)
 
+    # Loop through each year and check if all 12 months are present
+    for year in years:
+        year_data = monthly_counts[monthly_counts['year'] == year]
+        
+        if len(year_data) == 12 and set(year_data['month']) == set(range(1, 13)):
+            pass
+        else:
+            missing_months = set(range(1, 13)) - set(year_data['month'])
+            st.write(f"Please notice that year {year} is missing data for months: {sorted(missing_months)}")
+
 def count_bar_chart(data, column):
+    # Convert 'visit_date' to datetime 
+    data['visit_date'] = pd.to_datetime(data['visit_date'])
     # Extract year from the date column
-    data['year'] = pd.to_datetime(data['visit_date']).dt.year
+    data['year'] = data['visit_date'].dt.year
+    data['month'] = data['visit_date'].dt.month
+    # Group by year and month and count the number of records
+    monthly_counts = data.groupby(['year', 'month']).size().reset_index(name='counts')
+    # Get the unique years in the dataset
+    years = monthly_counts['year'].unique()
 
     # Group data by year and specified column and count occurrences
     counted_data = data.groupby(['year', column]).size().reset_index(name='count')
@@ -250,6 +291,16 @@ def count_bar_chart(data, column):
                       texttemplate='%{y:,.0f}', textfont=dict(size=10))  # Adjust label settings
 
     st.plotly_chart(fig)
+
+    # Loop through each year and check if all 12 months are present
+    for year in years:
+        year_data = monthly_counts[monthly_counts['year'] == year]
+        
+        if len(year_data) == 12 and set(year_data['month']) == set(range(1, 13)):
+            pass
+        else:
+            missing_months = set(range(1, 13)) - set(year_data['month'])
+            st.write(f"Please notice that year {year} is missing data for months: {sorted(missing_months)}")
 
 columns = ['field_labor_duration', 'remote_labor_duration', 'travel_duration_total', 'total_labor_cost', 'part_cost']
 
