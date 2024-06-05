@@ -302,7 +302,7 @@ def count_bar_chart(data, column):
             missing_months = set(range(1, 13)) - set(year_data['month'])
             st.write(f"Please notice that year {year} is missing data for months: {sorted(missing_months)}")
 
-columns = ['field_labor_duration', 'remote_labor_duration', 'travel_duration_total', 'total_labor_cost', 'part_cost']
+# columns = ['field_labor_duration', 'remote_labor_duration', 'travel_duration_total', 'total_labor_cost', 'part_cost']
 
 explanation = '''In a box plot, the upper and lower fences are used to identify potential outliers in the data.
             These fences are calculated based on the interquartile range (IQR), which is a measure of statistical data scatter.
@@ -311,26 +311,39 @@ explanation = '''In a box plot, the upper and lower fences are used to identify 
             Upper Fence: Q3 + K x IQR
             Here: Q1 is the first quartile (25th percentile), Q3 is the third quartile (75th percentile), IQR is the interquartile range (Q3-Q1), K is a constant multiplier that determines the range beyond which data points are considered potential outliers, in our case K = 1.5.'''
 
-uploaded_file = st.file_uploader("Please load a sc_events file", type=["csv"])
+uploaded_file = st.file_uploader("Please load a data file", type=["csv","xlsx"])
 st.title('Outliers Analysis')
 
 if not uploaded_file:
     st.write('To start analysis upload your data')
 
 if uploaded_file:
-    opening = ('''Please select the wanted functions, the script will analyze only service events. 
-             Main purpose of this page is to locate outliers and filter them as needed.''')
+    opening = ('''Main purpose of this page is to locate outliers and filter them as needed.''')
     
     lines = opening.split('\n')
     for line in lines:
         st.write(line)
 
     df = pd.read_csv(uploaded_file, low_memory=False)
+    original_rows = df.shape[0]
     full_df = df.copy() # Needed for event category stacked graph
-    df = df[df['event_category'] == 'service']
-    total_rows = df.shape[0]
+    list_of_columns = df.columns.to_list()
+    event_category_check_box = st.checkbox(label="Select this box to filter only on service events")
+    if event_category_check_box:
+        event_category = st.selectbox(label='Select event category column', options= list_of_columns)
+        value = st.text_input("Select the value to filter on")
+        if value:
+            df = df[df[event_category] == value]
+            total_rows = df.shape[0]
+            percentage = round((total_rows/original_rows)*100,2)
+            formatted_original_rows = "{:,.0f}".format(original_rows)
+            formatted_total_rows = "{:,.0f}".format(total_rows)
+            text = f"Using {formatted_total_rows} rows out of {formatted_original_rows} rows, which is {percentage}% of total dataset."
+            st.markdown(text)
+    else:
+        total_rows = original_rows
     data = df
-    
+
     st.title("Settings")
 
     check_box1 = st.checkbox(label="Display a random dataset sample")
@@ -346,7 +359,9 @@ if uploaded_file:
             st.write(line)
 
     st.title("Plots")
-    plot_selection = st.multiselect(label="Select columns to create plots", options=columns)
+    #Use only the numeric columns
+    list_of_columns = df.select_dtypes(include=['int', 'float']).columns
+    plot_selection = st.multiselect(label="Select columns to create plots, only numeric columns are available", options=list_of_columns)
     
     if plot_selection:
         for col in plot_selection:
@@ -362,7 +377,7 @@ if uploaded_file:
     if chosen_method == 'Percentile Based':
         bottom_percentile,top_percentile = st.slider("Please select a range of values for top and bottom percentiles", 0, 100, (5,95))
     
-    filter_columns = st.multiselect("Select columns for filtering", options=columns)
+    filter_columns = st.multiselect("Select columns for filtering", options=list_of_columns)
     filter_values = {}
     fixed_maximum_values = {}
 
@@ -536,8 +551,13 @@ if uploaded_file:
         stacked_graph(df,'event_type')
 
     if costs_stacked_graph_check_box:
-        columns_to_plot = ['total_labor_cost', 'total_part_cost', 'travel_cost_total']
-        stacked_sum_graph(data, columns_to_plot)
+        # columns_to_plot = ['total_labor_cost', 'total_part_cost', 'travel_cost_total']
+        labor_cost = st.selectbox('Select labor cost column', list_of_columns)
+        part_cost = st.selectbox('Select part cost column', list_of_columns)
+        travel_cost = st.selectbox('Select travel cost', list_of_columns)
+        if labor_cost != '<select>' and part_cost != '<select>' and travel_cost != '<select>':
+            columns_to_plot = [labor_cost,part_cost,travel_cost]
+            stacked_sum_graph(data, columns_to_plot)
 
     if product_type_bar_chart_check_box:
         count_bar_chart(data,'producttype_t2')
