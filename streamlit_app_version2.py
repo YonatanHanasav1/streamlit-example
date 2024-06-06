@@ -46,13 +46,49 @@ def modify_column_names(column_str):
 def format_and_display_table(data, title, column_str, id_column):
     formatted_table = data.reset_index(drop=True)
     formatted_table.index += 1
-    formatted_table[column_str] = formatted_table[column_str].round(2)
-    formatted_table[column_str] = formatted_table[column_str].map(lambda x: "{:,.2f}".format(x))
+    formatted_table[column_str] = formatted_table[column_str]
+    formatted_table[column_str] = formatted_table[column_str].map(lambda x: "{:,.0f}".format(x))
     formatted_table[id_column] = formatted_table[id_column].astype(str)
     formatted_table = formatted_table[[id_column, column_str]]
     st.table(formatted_table)
 
-def boxplotter(column_str, data):
+def data_details(column_str, data, chosen_method):
+    modified_col, event_type_filter = modify_column_names(column_str)
+    data = data.copy()
+    if chosen_method == 'Interquartile Range':
+        median,lower_fence,upper_fence = calculate_IQR(data,modified_col)
+    else:
+        median = calculate_IQR(data,modified_col)[0]
+        median,lower_fence,upper_fence = calculate_percentiles_method(data,modified_col,top_percentile,bottom_percentile)
+
+    st.markdown(f'You are using {chosen_method} method to define outliers')
+    st.subheader(f"Fences values of {modified_col}")
+
+    # Display fences and median in a table
+    fences_median_df = pd.DataFrame({
+        'Metric': ['Upper Fence', 'Lower Fence', 'Median'],
+        'Value': [upper_fence, lower_fence, median]})
+    fences_median_df['Value'] = fences_median_df['Value']
+    fences_median_df['Value'] = fences_median_df['Value'].map(lambda x: f"{x:,.0f}")
+    st.table(fences_median_df)
+
+    # Identify and display highest and lowest 5 outliers
+    highest_5_outliers = data[[modified_col, 'investigation_id']].sort_values(by=modified_col, ascending=False).head(5)
+    lowest_5_outliers = data[[modified_col, 'investigation_id']].sort_values(by=modified_col, ascending=True).head(5)
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        title_text = f"Highest 5 outliers for {event_type_filter}_{modified_col}:" if event_type_filter else f"Highest 5 outliers for {modified_col}:"
+        st.write(title_text)
+        format_and_display_table(highest_5_outliers, title_text, modified_col, 'investigation_id')
+
+    with col2:
+        title_text = f"Lowest 5 outliers for {event_type_filter}_{modified_col}:" if event_type_filter else f"Lowest 5 outliers for {modified_col}:"
+        st.write(title_text)
+        format_and_display_table(lowest_5_outliers, title_text, modified_col, 'investigation_id')
+
+def boxplotter(column_str, data, chosen_method):
     modified_col, event_type_filter = modify_column_names(column_str)
     
     boxplot_data = data.copy()
@@ -67,35 +103,24 @@ def boxplotter(column_str, data):
     st.write("Data points showing on plot are the values outside of fences")
     
     # Create the box plot
-    plot = px.box(data_frame=boxplot_data, y=modified_col)
-    st.plotly_chart(plot, theme="streamlit", use_container_width=True)
+    if chosen_method == 'Interquartile Range':
+        plot = px.box(data_frame=boxplot_data, y=modified_col)
+        st.plotly_chart(plot, theme="streamlit", use_container_width=True)
+    
+    else:
+        median,lower_fence,upper_fence = calculate_percentiles_method(data,modified_col,top_percentile,bottom_percentile)
+        plot = px.box(data_frame=boxplot_data, y=modified_col)
+        fig = go.Figure(data=plot.data)
 
-    median,lower_fence,upper_fence = calculate_IQR(boxplot_data,modified_col)
+        # Add percentile fences
+        fig.add_shape(type="line",
+                    x0=-0.5, x1=0.5, y0=lower_fence, y1=lower_fence,
+                    line=dict(color="green", dash="dash"))
+        fig.add_shape(type="line",
+                    x0=-0.5, x1=0.5, y0=upper_fence, y1=upper_fence,
+                    line=dict(color="green", dash="dash"))
 
-    # Display fences and median in a table
-    fences_median_df = pd.DataFrame({
-        'Metric': ['Upper Fence', 'Lower Fence', 'Median'],
-        'Value': [upper_fence, lower_fence, median]
-    })
-    fences_median_df['Value'] = fences_median_df['Value'].round(2)
-    fences_median_df['Value'] = fences_median_df['Value'].map(lambda x: f"{x:,.2f}".rstrip('0').rstrip('.'))
-    st.table(fences_median_df)
-
-    # Identify and display highest and lowest 5 outliers
-    highest_5_outliers = boxplot_data[[modified_col, 'investigation_id']].sort_values(by=modified_col, ascending=False).head(5)
-    lowest_5_outliers = boxplot_data[[modified_col, 'investigation_id']].sort_values(by=modified_col, ascending=True).head(5)
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        title_text = f"Highest 5 outliers for {event_type_filter}_{modified_col}:" if event_type_filter else f"Highest 5 outliers for {modified_col}:"
-        st.write(title_text)
-        format_and_display_table(highest_5_outliers, title_text, modified_col, 'investigation_id')
-
-    with col2:
-        title_text = f"Lowest 5 outliers for {event_type_filter}_{modified_col}:" if event_type_filter else f"Lowest 5 outliers for {modified_col}:"
-        st.write(title_text)
-        format_and_display_table(lowest_5_outliers, title_text, modified_col, 'investigation_id')
+        st.plotly_chart(fig, theme="streamlit", use_container_width=True)
 
 def histogram(column_str, data):
     modified_col, event_type_filter = modify_column_names(column_str)
@@ -302,8 +327,6 @@ def count_bar_chart(data, column):
             missing_months = set(range(1, 13)) - set(year_data['month'])
             st.write(f"Please notice that year {year} is missing data for months: {sorted(missing_months)}")
 
-# columns = ['field_labor_duration', 'remote_labor_duration', 'travel_duration_total', 'total_labor_cost', 'part_cost']
-
 explanation = '''In a box plot, the upper and lower fences are used to identify potential outliers in the data.
             These fences are calculated based on the interquartile range (IQR), which is a measure of statistical data scatter.
             The formula for calculating the upper and lower fences is as follows:
@@ -311,40 +334,37 @@ explanation = '''In a box plot, the upper and lower fences are used to identify 
             Upper Fence: Q3 + K x IQR
             Here: Q1 is the first quartile (25th percentile), Q3 is the third quartile (75th percentile), IQR is the interquartile range (Q3-Q1), K is a constant multiplier that determines the range beyond which data points are considered potential outliers, in our case K = 1.5.'''
 
-uploaded_file = st.file_uploader("Please load a data file", type=["csv","xlsx"])
+uploaded_file = st.file_uploader(label= '', type=["csv","xlsx"])
 st.title('Outliers Analysis')
 
 if not uploaded_file:
-    st.write('To start analysis upload your data')
+    st.write('To start analysis please upload data file')
 
 if uploaded_file:
-    opening = ('''Main purpose of this page is to locate outliers and filter them as needed.''')
-    
-    lines = opening.split('\n')
-    for line in lines:
-        st.write(line)
+    opening = ('The main purpose of this application is to find outliers within the dataset and filter them as needed.')
+    st.write(opening)
 
     df = pd.read_csv(uploaded_file, low_memory=False)
     original_rows = df.shape[0]
     full_df = df.copy() # Needed for event category stacked graph
     list_of_columns = df.columns.to_list()
+
+    st.title("Settings")
     event_category_check_box = st.checkbox(label="Select this box to filter only on service events")
     if event_category_check_box:
         event_category = st.selectbox(label='Select event category column', options= list_of_columns)
         value = st.text_input("Select the value to filter on")
         if value:
             df = df[df[event_category] == value]
-            total_rows = df.shape[0]
-            percentage = round((total_rows/original_rows)*100,2)
+            service_rows = df.shape[0]
+            percentage = round((service_rows/original_rows)*100,2)
             formatted_original_rows = "{:,.0f}".format(original_rows)
-            formatted_total_rows = "{:,.0f}".format(total_rows)
-            text = f"Using {formatted_total_rows} rows out of {formatted_original_rows} rows, which is {percentage}% of total dataset."
+            formatted_service_rows = "{:,.0f}".format(service_rows)
+            text = f"Using {formatted_service_rows} rows out of {formatted_original_rows} rows, which is {percentage}% of total dataset."
             st.markdown(text)
     else:
-        total_rows = original_rows
+        service_rows = original_rows
     data = df
-
-    st.title("Settings")
 
     check_box1 = st.checkbox(label="Display a random dataset sample")
     if check_box1:
@@ -358,24 +378,25 @@ if uploaded_file:
         for line in lines:
             st.write(line)
 
+    outlier_finiding_methods = ['Interquartile Range','Percentile Based']
+    chosen_method = st.selectbox(label="Select outlier finding method, this will determine the outlier classification, default is IQR", options=outlier_finiding_methods)  
+    if chosen_method == 'Percentile Based':
+        bottom_percentile,top_percentile = st.slider("Please select a range of values for top and bottom percentiles", 0, 100, (5,95))
+
     st.title("Plots")
     #Use only the numeric columns
     list_of_columns = df.select_dtypes(include=['int', 'float']).columns
-    plot_selection = st.multiselect(label="Select columns to create plots, only numeric columns are available", options=list_of_columns)
+    plot_selection = st.multiselect(label="Select columns to create plots, only numeric columns are useable", options=list_of_columns)
     
     if plot_selection:
         for col in plot_selection:
-            boxplotter(col, data)
+            data_details(col, data, chosen_method)
+            boxplotter(col, data, chosen_method)
             histogram(col, data)
             bar_chart_sum_vs_non_outliers(data, col)
 
     st.title("Filter Data")
     st.markdown("Here you can filter out values, and remove outlier rows")
-
-    outlier_finiding_methods = ['Interquartile Range','Percentile Based']
-    chosen_method = st.selectbox(label="Select outlier finding method, this will determine the outlier classification", options=outlier_finiding_methods)  
-    if chosen_method == 'Percentile Based':
-        bottom_percentile,top_percentile = st.slider("Please select a range of values for top and bottom percentiles", 0, 100, (5,95))
     
     filter_columns = st.multiselect("Select columns for filtering", options=list_of_columns)
     filter_values = {}
@@ -529,35 +550,35 @@ if uploaded_file:
 
         # Display the total filtered percentage above the download file button
         if remove_outliers_button or replace_with_fences_button or replace_with_median_button or fixed_value_flag:            
-            total_filtered_percentage = round(((total_rows - filtered_df.shape[0]) / total_rows) * 100,2)
+            total_filtered_percentage = round(((service_rows - filtered_df.shape[0]) / service_rows) * 100,2)
             st.subheader("Total Filtered:")
-            formatted_filtered_out_rows = "{:,.0f}".format(total_rows - filtered_df.shape[0])
+            formatted_filtered_out_rows = "{:,.0f}".format(service_rows - filtered_df.shape[0])
             st.write(f"{(formatted_filtered_out_rows)} rows were filtered out, which are {total_filtered_percentage}% of total original file rows")
 
             csv_data = filtered_df.to_csv(index=False)
             st.download_button(label=f"Download {csv_filename}", data=csv_data, file_name=csv_filename, key=f"download_button_{download_button_key}")
 
     # Additional Graphs
-    st.title("Additional Graphs")
-    EC_stacked_graph_check_box = st.checkbox(label="Display a stacked graph of event category per year")
-    ET_stacked_graph_check_box = st.checkbox(label="Display a stacked graph of event type per year")
-    costs_stacked_graph_check_box = st.checkbox(label="Display a stacked graph of service costs per year")
-    product_type_bar_chart_check_box = st.checkbox(label="Display a bar graph of product type per year")
+    # st.title("Additional Graphs")
+    # EC_stacked_graph_check_box = st.checkbox(label="Display a stacked graph of event category per year")
+    # ET_stacked_graph_check_box = st.checkbox(label="Display a stacked graph of event type per year")
+    # costs_stacked_graph_check_box = st.checkbox(label="Display a stacked graph of service costs per year")
+    # product_type_bar_chart_check_box = st.checkbox(label="Display a bar graph of product type per year")
 
-    if EC_stacked_graph_check_box:
-        stacked_graph(full_df,'event_category')
+    # if EC_stacked_graph_check_box:
+    #     stacked_graph(full_df,'event_category')
 
-    if ET_stacked_graph_check_box:
-        stacked_graph(df,'event_type')
+    # if ET_stacked_graph_check_box:
+    #     stacked_graph(df,'event_type')
 
-    if costs_stacked_graph_check_box:
-        # columns_to_plot = ['total_labor_cost', 'total_part_cost', 'travel_cost_total']
-        labor_cost = st.selectbox('Select labor cost column', list_of_columns)
-        part_cost = st.selectbox('Select part cost column', list_of_columns)
-        travel_cost = st.selectbox('Select travel cost', list_of_columns)
-        if labor_cost != '<select>' and part_cost != '<select>' and travel_cost != '<select>':
-            columns_to_plot = [labor_cost,part_cost,travel_cost]
-            stacked_sum_graph(data, columns_to_plot)
+    # if costs_stacked_graph_check_box:
+    #     # columns_to_plot = ['total_labor_cost', 'total_part_cost', 'travel_cost_total']
+    #     labor_cost = st.selectbox('Select labor cost column', list_of_columns)
+    #     part_cost = st.selectbox('Select part cost column', list_of_columns)
+    #     travel_cost = st.selectbox('Select travel cost', list_of_columns)
+    #     if labor_cost != '<select>' and part_cost != '<select>' and travel_cost != '<select>':
+    #         columns_to_plot = [labor_cost,part_cost,travel_cost]
+    #         stacked_sum_graph(data, columns_to_plot)
 
-    if product_type_bar_chart_check_box:
-        count_bar_chart(data,'producttype_t2')
+    # if product_type_bar_chart_check_box:
+    #     count_bar_chart(data,'producttype_t2')
