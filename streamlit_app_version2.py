@@ -366,6 +366,11 @@ if uploaded_file:
         service_rows = original_rows
     data = df
 
+    outlier_finiding_methods = ['Interquartile Range','Percentile Based']
+    chosen_method = st.selectbox(label="Select outlier finding method, this will determine the outlier classification, default is IQR", options=outlier_finiding_methods)  
+    if chosen_method == 'Percentile Based':
+        bottom_percentile,top_percentile = st.slider("Please select a range of values for top and bottom percentiles", 0, 100, (5,95))
+
     check_box1 = st.checkbox(label="Display a random dataset sample")
     if check_box1:
         st.subheader('Random Data Sample')
@@ -377,11 +382,6 @@ if uploaded_file:
         lines = explanation.split('\n')
         for line in lines:
             st.write(line)
-
-    outlier_finiding_methods = ['Interquartile Range','Percentile Based']
-    chosen_method = st.selectbox(label="Select outlier finding method, this will determine the outlier classification, default is IQR", options=outlier_finiding_methods)  
-    if chosen_method == 'Percentile Based':
-        bottom_percentile,top_percentile = st.slider("Please select a range of values for top and bottom percentiles", 0, 100, (5,95))
 
     st.title("Plots")
     #Use only the numeric columns
