@@ -8,9 +8,7 @@ import numpy as np
 
 def calculate_IQR(data,col):
     IQR_data = data.copy()
-    modified_col, event_type_filter = modify_column_names(col)
-    if event_type_filter:
-        IQR_data = data[data['event_type'] == event_type_filter]
+    modified_col = col
     # Calculate the quartiles and fences
     median = IQR_data[modified_col].median()
     Q1 = IQR_data[modified_col].quantile(0.25)
@@ -23,88 +21,68 @@ def calculate_IQR(data,col):
 
 def calculate_percentiles_method(data,col,top_percentile,bottom_percentile):
     percentile_data = data.copy()
-    modified_col, event_type_filter = modify_column_names(col)
-    if event_type_filter:
-        percentile_data = data[data['event_type'] == event_type_filter]
-    modified_col = modify_column_names(col)[0]
+    modified_col = col
     median = percentile_data[modified_col].median()
     lower_fence = percentile_data[modified_col].quantile(bottom_percentile/100)
     upper_fence = percentile_data[modified_col].quantile(top_percentile/100)
 
     return median,lower_fence,upper_fence
 
-def modify_column_names(column_str):
-    if column_str == 'field_labor_duration':
-        return 'labor_duration', 'field'
-    elif column_str == 'remote_labor_duration':
-        return 'labor_duration', 'remote'
-    elif column_str == 'part_cost':
-        return 'total_part_cost', None
-    else:
-        return column_str, None
-
-def format_and_display_table(data, title, column_str, id_column):
+def format_and_display_table(data, title, column_str, id_column, event_type):    
     formatted_table = data.reset_index(drop=True)
     formatted_table.index += 1
     formatted_table[column_str] = formatted_table[column_str]
     formatted_table[column_str] = formatted_table[column_str].map(lambda x: "{:,.0f}".format(x))
     formatted_table[id_column] = formatted_table[id_column].astype(str)
-    formatted_table = formatted_table[[id_column, column_str]]
+    formatted_table[event_type] = formatted_table[event_type].astype(str)
+    formatted_table = formatted_table[[id_column, column_str,event_type]]
     st.table(formatted_table)
 
-def data_details(column_str, data, chosen_method):
-    modified_col, event_type_filter = modify_column_names(column_str)
+def data_details(column_str, data, chosen_method,event_type):
+    modified_col = column_str
     data = data.copy()
-    if chosen_method == 'Interquartile Range':
-        median,lower_fence,upper_fence = calculate_IQR(data,modified_col)
-    else:
-        median = calculate_IQR(data,modified_col)[0]
-        median,lower_fence,upper_fence = calculate_percentiles_method(data,modified_col,top_percentile,bottom_percentile)
 
     st.markdown(f'You are using {chosen_method} method to define outliers')
-    st.subheader(f"Fences values of {modified_col}")
 
-    # Display fences and median in a table
-    fences_median_df = pd.DataFrame({
-        'Metric': ['Upper Fence', 'Lower Fence', 'Median'],
-        'Value': [upper_fence, lower_fence, median]})
-    fences_median_df['Value'] = fences_median_df['Value']
-    fences_median_df['Value'] = fences_median_df['Value'].map(lambda x: f"{x:,.0f}")
-    st.table(fences_median_df)
+    for type in data['event_type'].unique():
+        data_copy = data.copy()
+        data_copy = data[data['event_type'] == type]
 
-    # Identify and display highest and lowest 5 outliers
-    highest_5_outliers = data[[modified_col, 'investigation_id']].sort_values(by=modified_col, ascending=False).head(5)
-    lowest_5_outliers = data[[modified_col, 'investigation_id']].sort_values(by=modified_col, ascending=True).head(5)
+        if chosen_method == 'Interquartile Range':
+            median,lower_fence,upper_fence = calculate_IQR(data_copy,modified_col)
+        else:
+            median = calculate_IQR(data_copy,modified_col)[0]
+            median,lower_fence,upper_fence = calculate_percentiles_method(data_copy,modified_col,top_percentile,bottom_percentile)
 
-    col1, col2 = st.columns(2)
+        # Display fences and median in a table
+        fences_median_df = pd.DataFrame({
+            'Metric': ['Upper Fence', 'Lower Fence', 'Median'],
+            'Value': [upper_fence, lower_fence, median]})
+        fences_median_df['Value'] = fences_median_df['Value']
+        fences_median_df['Value'] = fences_median_df['Value'].map(lambda x: f"{x:,.0f}")
+        st.write(f"Fences values of {type} {modified_col}")
+        st.table(fences_median_df)
 
-    with col1:
-        title_text = f"Highest 5 outliers for {event_type_filter}_{modified_col}:" if event_type_filter else f"Highest 5 outliers for {modified_col}:"
-        st.write(title_text)
-        format_and_display_table(highest_5_outliers, title_text, modified_col, 'investigation_id')
+        # Identify and display highest and lowest 5 outliers
+        highest_5_outliers = data_copy[[modified_col,investigation_id,event_type]].sort_values(by=modified_col, ascending=False).head(5)
+        col1= st.columns(1)[0]
 
-    with col2:
-        title_text = f"Lowest 5 outliers for {event_type_filter}_{modified_col}:" if event_type_filter else f"Lowest 5 outliers for {modified_col}:"
-        st.write(title_text)
-        format_and_display_table(lowest_5_outliers, title_text, modified_col, 'investigation_id')
+        with col1:
+            title_text = f"Highest 5 outliers for {type} {modified_col}:"
+            st.write(title_text)
+            format_and_display_table(highest_5_outliers, title_text, modified_col, investigation_id, event_type)
 
 def boxplotter(column_str, data, chosen_method):
-    modified_col, event_type_filter = modify_column_names(column_str)
+    modified_col = column_str
     
     boxplot_data = data.copy()
-    if event_type_filter:
-        boxplot_data = data[data['event_type'] == event_type_filter]
-    
-    if event_type_filter is not None:
-        st.subheader(f"Box Plot of {event_type_filter}_{modified_col}")
-    else:
-        st.subheader(f"Box Plot of {modified_col}")
+    st.subheader(f"Box Plot of {modified_col}")
     
     st.write("Data points showing on plot are the values outside of fences")
     
     # Create the box plot
     if chosen_method == 'Interquartile Range':
-        plot = px.box(data_frame=boxplot_data, y=modified_col)
+        plot = px.box(data_frame=boxplot_data, x=modified_col, y='event_type')
         st.plotly_chart(plot, theme="streamlit", use_container_width=True)
     
     else:
@@ -123,76 +101,73 @@ def boxplotter(column_str, data, chosen_method):
         st.plotly_chart(fig, theme="streamlit", use_container_width=True)
 
 def histogram(column_str, data):
-    modified_col, event_type_filter = modify_column_names(column_str)
+    modified_col = column_str
 
-    histogram_data = data.copy()
-    if event_type_filter:
-        histogram_data = data[data['event_type'] == event_type_filter]
-    if event_type_filter:
-        st.subheader(f"Histogram of {event_type_filter}_{modified_col}")
-    else:
-        st.subheader(f"Histogram of {modified_col}")
-    
-    median_val = histogram_data[modified_col].median()
-    plot = px.histogram(data_frame=histogram_data, x=modified_col, nbins=30)
-    plot.add_vline(x=median_val, line_dash="dash", line_color="red", annotation_text=f'Median: {median_val:.2f}', annotation_position="top left")
+    for type in data['event_type'].unique():
+        data_copy = data.copy()
+        data_copy = data[data['event_type'] == type]
 
-    # Update the layout to set the y-axis title
-    plot.update_layout(yaxis_title='Number of Events')
+        histogram_data = data_copy
+        st.subheader(f"Histogram of {type} {modified_col}")
+        
+        median_val = histogram_data[modified_col].median()
+        plot = px.histogram(data_frame=histogram_data, x=modified_col, nbins=30)
+        plot.add_vline(x=median_val, line_dash="dash", line_color="red", annotation_text=f'Median: {median_val:.2f}', annotation_position="top left")
 
-    st.plotly_chart(plot, theme="streamlit", use_container_width=True)
+        # Update the layout to set the y-axis title
+        plot.update_layout(yaxis_title='Number of Events')
+
+        st.plotly_chart(plot, theme="streamlit", use_container_width=True)
 
 def bar_chart_sum_vs_non_outliers(data, col):
-    modified_col, event_type_filter = modify_column_names(col)
+    modified_col = col
 
-    bar_chart_data = data.copy()
-    if event_type_filter:
-        bar_chart_data = data[data['event_type'] == event_type_filter]
-    
-    # if modified_col == 'labor_duration':
-    #     bar_chart_data = bar_chart_data[bar_chart_data[modified_col] > 0]
-    if event_type_filter:
-        st.subheader(f"Bar Chart of {event_type_filter}_{modified_col}, comparing with and without outliers values")
-    else:
-        st.subheader(f"Bar Chart of {modified_col},comparing with and without outliers values")
+    for type in data['event_type'].unique():
+        data_copy = data.copy()
+        data_copy = data[data['event_type'] == type]
 
-    # Calculate the quartiles and fences
-    Q1 = bar_chart_data[modified_col].quantile(0.25)
-    Q3 = bar_chart_data[modified_col].quantile(0.75)
-    IQR = Q3 - Q1
-    lower_fence = max(Q1 - 1.5 * IQR, 0)
-    upper_fence = Q3 + 1.5 * IQR
+        bar_chart_data = data_copy
+        # if modified_col == 'labor_duration':
+        #     bar_chart_data = bar_chart_data[bar_chart_data[modified_col] > 0]
+        
+        st.subheader(f"Bar Chart of {type} {modified_col}, comparing with and without outliers values")
 
-    # Sum of all values
-    sum_all_values = bar_chart_data[modified_col].sum()
+        # Calculate the quartiles and fences
+        Q1 = bar_chart_data[modified_col].quantile(0.25)
+        Q3 = bar_chart_data[modified_col].quantile(0.75)
+        IQR = Q3 - Q1
+        lower_fence = max(Q1 - 1.5 * IQR, 0)
+        upper_fence = Q3 + 1.5 * IQR
 
-    # Sum of non-outlier values
-    non_outliers = bar_chart_data[(bar_chart_data[modified_col] >= lower_fence) & (bar_chart_data[modified_col] <= upper_fence)]
-    sum_non_outlier_values = non_outliers[modified_col].sum()
+        # Sum of all values
+        sum_all_values = bar_chart_data[modified_col].sum()
 
-    # Prepare filtered_data for Plotly
-    bar_chart_data = {
-        'Category': ['Sum of All Values', 'Sum of Non-Outlier Values'],
-        str(modified_col): [sum_all_values, sum_non_outlier_values]
-    }
+        # Sum of non-outlier values
+        non_outliers = bar_chart_data[(bar_chart_data[modified_col] >= lower_fence) & (bar_chart_data[modified_col] <= upper_fence)]
+        sum_non_outlier_values = non_outliers[modified_col].sum()
 
-    # Create a DataFrame
-    df = pd.DataFrame(bar_chart_data)
+        # Prepare filtered_data for Plotly
+        bar_chart_data = {
+            'Category': ['Sum of All Values', 'Sum of Non-Outlier Values'],
+            str(modified_col): [sum_all_values, sum_non_outlier_values]}
 
-    # Create a bar chart
-    fig = px.bar(df, x='Category', y=modified_col, title=f'Sum of Values vs. Non-Outlier Values: {modified_col}', color='Category', text_auto=True)
+        # Create a DataFrame
+        df = pd.DataFrame(bar_chart_data)
 
-    # Display the chart using Streamlit
-    st.plotly_chart(fig)
+        # Create a bar chart
+        fig = px.bar(df, x='Category', y=modified_col, title=f'Sum of Values vs. Non-Outlier Values: {modified_col}', color='Category', text_auto=True)
 
-    percentage_of_change = round(100*(1-(sum_non_outlier_values / sum_all_values)),2)
-    difference_of_change = round(sum_all_values - sum_non_outlier_values,2)
-    formatted_difference_of_change = "{:,.0f}".format(difference_of_change)
-    if 'duration' in modified_col:
-        units = 'hours'
-    else:
-        units = 'dollars'
-    st.markdown(f'Outliers values adding up {formatted_difference_of_change} {units} which is {percentage_of_change}% out of total column sum of values')
+        # Display the chart using Streamlit
+        st.plotly_chart(fig)
+
+        percentage_of_change = round(100*(1-(sum_non_outlier_values / sum_all_values)),2)
+        difference_of_change = round(sum_all_values - sum_non_outlier_values,2)
+        formatted_difference_of_change = "{:,.0f}".format(difference_of_change)
+        if 'duration' in modified_col:
+            units = 'hours'
+        else:
+            units = 'dollars'
+        st.markdown(f'Outliers values adding up {formatted_difference_of_change} {units} which is {percentage_of_change}% out of total column sum of values for {type} event type.')
 
 def stacked_graph(data, column):
     # Convert 'visit_date' to datetime 
@@ -350,18 +325,23 @@ if uploaded_file:
     list_of_columns = df.columns.to_list()
 
     st.title("Settings")
-    event_category_check_box = st.checkbox(label="Select this box to filter only on service events")
-    if event_category_check_box:
-        event_category = st.selectbox(label='Select event category column', options= list_of_columns)
-        value = st.text_input("Select the value to filter on")
-        if value:
-            df = df[df[event_category] == value]
-            service_rows = df.shape[0]
-            percentage = round((service_rows/original_rows)*100,2)
-            formatted_original_rows = "{:,.0f}".format(original_rows)
-            formatted_service_rows = "{:,.0f}".format(service_rows)
-            text = f"Using {formatted_service_rows} rows out of {formatted_original_rows} rows, which is {percentage}% of total dataset."
-            st.markdown(text)
+    investigation_id = st.selectbox(label='Select investigation ID column', options= list_of_columns)
+    event_type = st.selectbox(label='Select event_type (field / remote) column', options= list_of_columns)
+    if event_type:
+        st.write(event_type)
+    event_category = st.selectbox(label='Select event category column', options= list_of_columns)
+    # Get unique values from the selected column
+    unique_values = df[event_category].unique() 
+    # Select multiple values from the unique values
+    selected_values = st.multiselect("Select the value(s) to consider as service events", options=unique_values)
+    if selected_values:
+        df = df[df[event_category].isin(selected_values)]
+        service_rows = df.shape[0]
+        percentage = round((service_rows/original_rows)*100,2)
+        formatted_original_rows = "{:,.0f}".format(original_rows)
+        formatted_service_rows = "{:,.0f}".format(service_rows)
+        text = f"Using {formatted_service_rows} rows out of {formatted_original_rows} rows, which is {percentage}% of total dataset."
+        st.markdown(text)
     else:
         service_rows = original_rows
     data = df
@@ -390,7 +370,7 @@ if uploaded_file:
     
     if plot_selection:
         for col in plot_selection:
-            data_details(col, data, chosen_method)
+            data_details(col, data, chosen_method, event_type)
             boxplotter(col, data, chosen_method)
             histogram(col, data)
             bar_chart_sum_vs_non_outliers(data, col)
@@ -408,10 +388,7 @@ if uploaded_file:
 
         for col in filter_columns:
             df_copy = data.copy() #Used for filtering information section
-            modified_col, event_type_filter = modify_column_names(col)
-
-            if event_type_filter:
-                df_copy = df_copy[df_copy['event_type'] == event_type_filter]
+            modified_col = col
             if chosen_method == 'Interquartile Range':
                 median,lower_fence,upper_fence = calculate_IQR(df_copy,modified_col)
             if chosen_method == 'Percentile Based':
@@ -472,67 +449,35 @@ if uploaded_file:
 
         if remove_outliers_button or replace_with_fences_button or replace_with_median_button or fixed_max_value_button:
             for col in filter_columns:
-                modified_col, event_type_filter = modify_column_names(col)
+                modified_col = col
                 filtered_df_copy = data.copy()
-                if event_type_filter:
-                    filtered_df_copy = filtered_df_copy[filtered_df_copy['event_type'] == event_type_filter]
                 if chosen_method == 'Interquartile Range':
                     median,lower_fence,upper_fence = calculate_IQR(filtered_df_copy,modified_col)
                 if chosen_method == 'Percentile Based':
                     median,lower_fence,upper_fence = calculate_percentiles_method(filtered_df_copy,modified_col,top_percentile,bottom_percentile)
 
                 action = None  # Initialize action variable
-
-                # Create a mask based on event_type_filter (if present)
-                if event_type_filter:
-                    mask = (filtered_df['event_type'] == event_type_filter)                    
-                    if remove_outliers_button:
-                        filtered_df['flag'] = 0
-                        # Set the 'flag' column to 1 where the condition is met
-                        filtered_df.loc[
-                        (filtered_df[modified_col] > upper_fence) & 
-                        (filtered_df['event_type'] == event_type_filter), 'flag'] = 1
-                        filtered_df = filtered_df[filtered_df['flag']!= 1]
-                        action = 'Remove_outliers_'
-                    elif replace_with_fences_button:
-                        # Replace outliers with fences values for specific event_type_filter or all
-                        filtered_df.loc[mask & (filtered_df[modified_col] < lower_fence), modified_col] = lower_fence
-                        filtered_df.loc[mask & (filtered_df[modified_col] > upper_fence), modified_col] = upper_fence
-                        action = 'Replace_outliers_with_fences_'
-                    elif replace_with_median_button:
-                        # Replace outliers with median value for specific event_type_filter or all
-                        filtered_df.loc[mask & (filtered_df[modified_col] < lower_fence), modified_col] = median
-                        filtered_df.loc[mask & (filtered_df[modified_col] > upper_fence), modified_col] = median
-                        action = 'Replace_outliers_with_median_'
-                    elif fixed_max_value_button:
-                        # Display selected columns and values for each selected column
-                        fixed_maximum_values[col] = st.number_input(f"Enter maximum fixed value for {event_type_filter}_{modified_col}, minimum value set to be 0", min_value=0.0,value = round(upper_fence,2))
-                        # Keep the other event type and filter the second ones
-                        filtered_df = filtered_df[((filtered_df['event_type'] != event_type_filter) | ((filtered_df['event_type'] == event_type_filter) & (filtered_df[modified_col] <= fixed_maximum_values[col])))]
-                        action = 'Set_fixed_maximum_value_'
-                        fixed_value_flag = True                      
-                else:
-                    if remove_outliers_button:
-                        # Create a mask to identify outliers
-                        outlier_mask = (filtered_df[modified_col] < lower_fence) | (filtered_df[modified_col] > upper_fence)                        
-                        # Remove rows that match the combined mask
-                        filtered_df = filtered_df.drop(filtered_df[outlier_mask].index)                        
-                        action = 'Remove_outliers_'
-                    elif replace_with_fences_button:
-                        # Replace outliers with fences values for specific event_type_filter or all
-                        filtered_df.loc[(filtered_df[modified_col] < lower_fence), modified_col] = lower_fence
-                        filtered_df.loc[(filtered_df[modified_col] > upper_fence), modified_col] = upper_fence
-                        action = 'Replace_outliers_with_fences_'
-                    elif replace_with_median_button:
-                        # Replace outliers with median value for specific event_type_filter or all
-                        filtered_df.loc[(filtered_df[modified_col] < lower_fence), modified_col] = median
-                        filtered_df.loc[(filtered_df[modified_col] > upper_fence), modified_col] = median
-                        action = 'Replace_outliers_with_median_'
-                    elif fixed_max_value_button:
-                        fixed_maximum_values[col] = st.number_input(f"Enter maximum fixed value for {modified_col}, minimum value set to be 0", min_value=0.0,value = round(upper_fence,2))
-                        filtered_df = filtered_df[filtered_df[modified_col] <= fixed_maximum_values[col]]
-                        action = 'Set_fixed_maximum_value_'
-                        fixed_value_flag = True
+                if remove_outliers_button:
+                    # Create a mask to identify outliers
+                    outlier_mask = (filtered_df[modified_col] < lower_fence) | (filtered_df[modified_col] > upper_fence)                        
+                    # Remove rows that match the combined mask
+                    filtered_df = filtered_df.drop(filtered_df[outlier_mask].index)                        
+                    action = 'Remove_outliers_'
+                elif replace_with_fences_button:
+                    # Replace outliers with fences values 
+                    filtered_df.loc[(filtered_df[modified_col] < lower_fence), modified_col] = lower_fence
+                    filtered_df.loc[(filtered_df[modified_col] > upper_fence), modified_col] = upper_fence
+                    action = 'Replace_outliers_with_fences_'
+                elif replace_with_median_button:
+                    # Replace outliers with median value 
+                    filtered_df.loc[(filtered_df[modified_col] < lower_fence), modified_col] = median
+                    filtered_df.loc[(filtered_df[modified_col] > upper_fence), modified_col] = median
+                    action = 'Replace_outliers_with_median_'
+                elif fixed_max_value_button:
+                    fixed_maximum_values[col] = st.number_input(f"Enter maximum fixed value for {modified_col}, minimum value set to be 0", min_value=0.0,value = round(upper_fence,2))
+                    filtered_df = filtered_df[filtered_df[modified_col] <= fixed_maximum_values[col]]
+                    action = 'Set_fixed_maximum_value_'
+                    fixed_value_flag = True
 
         csv_filename = f"sc_events_filtered_"
         if filter_columns:
