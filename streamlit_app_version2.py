@@ -122,8 +122,6 @@ def bar_chart_sum_vs_non_outliers(data, col):
         data_copy = data.copy()
         data_copy = data[data['event_type'] == type]
         bar_chart_data = data_copy
-        
-        st.subheader(f"Bar Chart of {type} {column}, comparing with and without outliers values")
 
         if chosen_method == 'Interquartile Range':
                 median,lower_fence,upper_fence = calculate_IQR(data,column)
@@ -142,14 +140,16 @@ def bar_chart_sum_vs_non_outliers(data, col):
 
         # Prepare filtered_data for Plotly
         bar_chart_data = {
-            'Category': ['Sum of All Values', 'Sum of Non-Outlier Values'],
+            'Category': ['Sum of Values', 'Sum of Non-Outlier Values'],
             str(column): [formatted_sum_all_values, formatted_sum_non_outlier_values]}
 
         # Create a DataFrame
         df = pd.DataFrame(bar_chart_data)
 
+        st.subheader(f'Sum of Values vs. Non-Outlier Values: {type} {column}')
+
         # Create a bar chart
-        fig = px.bar(df, x='Category', y=column, title=f'Sum of Values vs. Non-Outlier Values: {column}', color='Category', text_auto=True)
+        fig = px.bar(df, x='Category', y=column, color='Category', text_auto=True)
 
         # Display the chart using Streamlit
         st.plotly_chart(fig)
