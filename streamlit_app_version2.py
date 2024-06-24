@@ -8,11 +8,11 @@ import numpy as np
 
 def calculate_IQR(data,col):
     IQR_data = data.copy()
-    modified_col = col
+    column = col
     # Calculate the quartiles and fences
-    median = IQR_data[modified_col].median()
-    Q1 = IQR_data[modified_col].quantile(0.25)
-    Q3 = IQR_data[modified_col].quantile(0.75)
+    median = IQR_data[column].median()
+    Q1 = IQR_data[column].quantile(0.25)
+    Q3 = IQR_data[column].quantile(0.75)
     IQR = Q3 - Q1
     lower_fence = max(Q1 - 1.5 * IQR, 0)
     upper_fence = Q3 + 1.5 * IQR
@@ -21,10 +21,10 @@ def calculate_IQR(data,col):
 
 def calculate_percentiles_method(data,col,top_percentile,bottom_percentile):
     percentile_data = data.copy()
-    modified_col = col
-    median = percentile_data[modified_col].median()
-    lower_fence = percentile_data[modified_col].quantile(bottom_percentile/100)
-    upper_fence = percentile_data[modified_col].quantile(top_percentile/100)
+    column = col
+    median = percentile_data[column].median()
+    lower_fence = percentile_data[column].quantile(bottom_percentile/100)
+    upper_fence = percentile_data[column].quantile(top_percentile/100)
 
     return median,lower_fence,upper_fence
 
@@ -39,7 +39,7 @@ def format_and_display_table(data, title, column_str, id_column, event_type):
     st.table(formatted_table)
 
 def data_details(column_str, data, chosen_method,event_type):
-    modified_col = column_str
+    column = column_str
     data = data.copy()
 
     st.markdown(f'You are using {chosen_method} method to define outliers')
@@ -49,10 +49,10 @@ def data_details(column_str, data, chosen_method,event_type):
         data_copy = data[data['event_type'] == type]
 
         if chosen_method == 'Interquartile Range':
-            median,lower_fence,upper_fence = calculate_IQR(data_copy,modified_col)
+            median,lower_fence,upper_fence = calculate_IQR(data_copy,column)
         else:
-            median = calculate_IQR(data_copy,modified_col)[0]
-            median,lower_fence,upper_fence = calculate_percentiles_method(data_copy,modified_col,top_percentile,bottom_percentile)
+            median = calculate_IQR(data_copy,column)[0]
+            median,lower_fence,upper_fence = calculate_percentiles_method(data_copy,column,top_percentile,bottom_percentile)
 
         # Display fences and median in a table
         fences_median_df = pd.DataFrame({
@@ -60,102 +60,96 @@ def data_details(column_str, data, chosen_method,event_type):
             'Value': [upper_fence, lower_fence, median]})
         fences_median_df['Value'] = fences_median_df['Value']
         fences_median_df['Value'] = fences_median_df['Value'].map(lambda x: f"{x:,.0f}")
-        st.write(f"Fences values of {type} {modified_col}")
+        st.write(f"Fences values of {type} {column}")
         st.table(fences_median_df)
 
         # Identify and display highest and lowest 5 outliers
-        highest_5_outliers = data_copy[[modified_col,investigation_id,event_type]].sort_values(by=modified_col, ascending=False).head(5)
+        highest_5_outliers = data_copy[[column,investigation_id,event_type]].sort_values(by=column, ascending=False).head(5)
         col1= st.columns(1)[0]
 
         with col1:
-            title_text = f"Highest 5 outliers for {type} {modified_col}:"
+            title_text = f"Highest 5 outliers for {type} {column}:"
             st.write(title_text)
-            format_and_display_table(highest_5_outliers, title_text, modified_col, investigation_id, event_type)
+            format_and_display_table(highest_5_outliers, title_text, column, investigation_id, event_type)
 
 def boxplotter(column_str, data, chosen_method):
-    modified_col = column_str
+    column = column_str
     
     boxplot_data = data.copy()
-    st.subheader(f"Box Plot of {modified_col}")
+    st.subheader(f"Box Plot of {column}")
     
     st.write("Data points showing on plot are the values outside of fences")
     
     # Create the box plot
     if chosen_method == 'Interquartile Range':
-        plot = px.box(data_frame=boxplot_data, x=modified_col, y='event_type')
+        plot = px.box(data_frame=boxplot_data, x=column, y='event_type')
         st.plotly_chart(plot, theme="streamlit", use_container_width=True)
     
     else:
-        median,lower_fence,upper_fence = calculate_percentiles_method(data,modified_col,top_percentile,bottom_percentile)
-        plot = px.box(data_frame=boxplot_data, y=modified_col)
-        fig = go.Figure(data=plot.data)
-
-        # Add percentile fences
-        fig.add_shape(type="line",
-                    x0=-0.5, x1=0.5, y0=lower_fence, y1=lower_fence,
-                    line=dict(color="green", dash="dash"))
-        fig.add_shape(type="line",
-                    x0=-0.5, x1=0.5, y0=upper_fence, y1=upper_fence,
-                    line=dict(color="green", dash="dash"))
-
-        st.plotly_chart(fig, theme="streamlit", use_container_width=True)
+        median,lower_fence,upper_fence = calculate_percentiles_method(data,column,top_percentile,bottom_percentile)
+        plot = px.box(data_frame=boxplot_data, x=column, y='event_type')
+        st.plotly_chart(plot, theme="streamlit", use_container_width=True)
 
 def histogram(column_str, data):
-    modified_col = column_str
+    column = column_str
+
+    if chosen_method == 'Interquartile Range':
+        median,lower_fence,upper_fence = calculate_IQR(data,column)
+    else:
+        median = calculate_IQR(data,column)[0]
+        median,lower_fence,upper_fence = calculate_percentiles_method(data,column,top_percentile,bottom_percentile)
 
     for type in data['event_type'].unique():
         data_copy = data.copy()
         data_copy = data[data['event_type'] == type]
 
         histogram_data = data_copy
-        st.subheader(f"Histogram of {type} {modified_col}")
+        st.subheader(f"Histogram of {type} {column}")
         
-        median_val = histogram_data[modified_col].median()
-        plot = px.histogram(data_frame=histogram_data, x=modified_col, nbins=30)
-        plot.add_vline(x=median_val, line_dash="dash", line_color="red", annotation_text=f'Median: {median_val:.2f}', annotation_position="top left")
-
+        plot = px.histogram(data_frame=histogram_data, x=column, nbins=30)
+        plot.add_vline(x=median, line_dash="dash", line_color="red", annotation_text=f'Median: {median:.2f}', annotation_position="top left")
+        plot.add_vline(x=upper_fence, line_dash="dash", line_color="red", annotation_text=f'Upper fence: {upper_fence:.2f}', annotation_position="top right")
+        
         # Update the layout to set the y-axis title
         plot.update_layout(yaxis_title='Number of Events')
 
         st.plotly_chart(plot, theme="streamlit", use_container_width=True)
 
 def bar_chart_sum_vs_non_outliers(data, col):
-    modified_col = col
+    column = col
 
     for type in data['event_type'].unique():
         data_copy = data.copy()
         data_copy = data[data['event_type'] == type]
-
         bar_chart_data = data_copy
-        # if modified_col == 'labor_duration':
-        #     bar_chart_data = bar_chart_data[bar_chart_data[modified_col] > 0]
         
-        st.subheader(f"Bar Chart of {type} {modified_col}, comparing with and without outliers values")
+        st.subheader(f"Bar Chart of {type} {column}, comparing with and without outliers values")
 
-        # Calculate the quartiles and fences
-        Q1 = bar_chart_data[modified_col].quantile(0.25)
-        Q3 = bar_chart_data[modified_col].quantile(0.75)
-        IQR = Q3 - Q1
-        lower_fence = max(Q1 - 1.5 * IQR, 0)
-        upper_fence = Q3 + 1.5 * IQR
+        if chosen_method == 'Interquartile Range':
+                median,lower_fence,upper_fence = calculate_IQR(data,column)
+        else:
+            median = calculate_IQR(data,column)[0]
+            median,lower_fence,upper_fence = calculate_percentiles_method(data,column,top_percentile,bottom_percentile)
 
         # Sum of all values
-        sum_all_values = bar_chart_data[modified_col].sum()
+        sum_all_values = bar_chart_data[column].sum()
+        formatted_sum_all_values = "{:,.0f}".format(sum_all_values)
 
         # Sum of non-outlier values
-        non_outliers = bar_chart_data[(bar_chart_data[modified_col] >= lower_fence) & (bar_chart_data[modified_col] <= upper_fence)]
-        sum_non_outlier_values = non_outliers[modified_col].sum()
+        non_outliers = bar_chart_data[(bar_chart_data[column] >= lower_fence) & (bar_chart_data[column] <= upper_fence)]
+        sum_non_outlier_values = non_outliers[column].sum()
+        formatted_sum_non_outlier_values = "{:,.0f}".format(sum_non_outlier_values)
 
         # Prepare filtered_data for Plotly
         bar_chart_data = {
             'Category': ['Sum of All Values', 'Sum of Non-Outlier Values'],
-            str(modified_col): [sum_all_values, sum_non_outlier_values]}
+            str(column): [formatted_sum_all_values, formatted_sum_non_outlier_values]}
 
         # Create a DataFrame
         df = pd.DataFrame(bar_chart_data)
 
         # Create a bar chart
-        fig = px.bar(df, x='Category', y=modified_col, title=f'Sum of Values vs. Non-Outlier Values: {modified_col}', color='Category', text_auto=True)
+        fig = px.bar(df, x='Category', y=column, title=f'Sum of Values vs. Non-Outlier Values: {column}', color='Category', text_auto=True)
 
         # Display the chart using Streamlit
         st.plotly_chart(fig)
@@ -163,11 +157,11 @@ def bar_chart_sum_vs_non_outliers(data, col):
         percentage_of_change = round(100*(1-(sum_non_outlier_values / sum_all_values)),2)
         difference_of_change = round(sum_all_values - sum_non_outlier_values,2)
         formatted_difference_of_change = "{:,.0f}".format(difference_of_change)
-        if 'duration' in modified_col:
+        if 'duration' in column:
             units = 'hours'
         else:
             units = 'dollars'
-        st.markdown(f'Outliers values adding up {formatted_difference_of_change} {units} which is {percentage_of_change}% out of total column sum of values for {type} event type.')
+        st.markdown(f'Outliers values adding up {formatted_difference_of_change} {units} which is {percentage_of_change}% out of {column} sum of values for {type} event type.')
 
 def stacked_graph(data, column):
     # Convert 'visit_date' to datetime 
@@ -388,26 +382,26 @@ if uploaded_file:
 
         for col in filter_columns:
             df_copy = data.copy() #Used for filtering information section
-            modified_col = col
+            column = col
             if chosen_method == 'Interquartile Range':
-                median,lower_fence,upper_fence = calculate_IQR(df_copy,modified_col)
+                median,lower_fence,upper_fence = calculate_IQR(df_copy,column)
             if chosen_method == 'Percentile Based':
-                median,lower_fence,upper_fence = calculate_percentiles_method(df_copy,modified_col,top_percentile,bottom_percentile)
+                median,lower_fence,upper_fence = calculate_percentiles_method(df_copy,column,top_percentile,bottom_percentile)
 
             formatted_median = "{:,.2f}".format(median)
             formatted_upper_fence = "{:,.2f}".format(upper_fence)
             formatted_lower_fence = "{:,.2f}".format(lower_fence)
 
             # Count outliers
-            num_above_fence = df_copy[df_copy[modified_col] > upper_fence].shape[0]
+            num_above_fence = df_copy[df_copy[column] > upper_fence].shape[0]
             formatted_num_above_fence= "{:,.0f}".format(num_above_fence)
-            num_below_fence = df_copy[df_copy[modified_col] < lower_fence].shape[0]
+            num_below_fence = df_copy[df_copy[column] < lower_fence].shape[0]
             formatted_num_below_fence= "{:,.0f}".format(num_below_fence)
 
-            sum_above_fence = df_copy[df_copy[modified_col] > upper_fence][modified_col].sum()
+            sum_above_fence = df_copy[df_copy[column] > upper_fence][column].sum()
             formatted_sum_above_fence= "{:,.0f}".format(sum_above_fence)
 
-            sum_below_fence = df_copy[df_copy[modified_col] < lower_fence][modified_col].sum()
+            sum_below_fence = df_copy[df_copy[column] < lower_fence][column].sum()
             formatted_sum_below_fence= "{:,.0f}".format(sum_below_fence)
 
             # Calculate percentages
@@ -449,33 +443,33 @@ if uploaded_file:
 
         if remove_outliers_button or replace_with_fences_button or replace_with_median_button or fixed_max_value_button:
             for col in filter_columns:
-                modified_col = col
+                column = col
                 filtered_df_copy = data.copy()
                 if chosen_method == 'Interquartile Range':
-                    median,lower_fence,upper_fence = calculate_IQR(filtered_df_copy,modified_col)
+                    median,lower_fence,upper_fence = calculate_IQR(filtered_df_copy,column)
                 if chosen_method == 'Percentile Based':
-                    median,lower_fence,upper_fence = calculate_percentiles_method(filtered_df_copy,modified_col,top_percentile,bottom_percentile)
+                    median,lower_fence,upper_fence = calculate_percentiles_method(filtered_df_copy,column,top_percentile,bottom_percentile)
 
                 action = None  # Initialize action variable
                 if remove_outliers_button:
                     # Create a mask to identify outliers
-                    outlier_mask = (filtered_df[modified_col] < lower_fence) | (filtered_df[modified_col] > upper_fence)                        
+                    outlier_mask = (filtered_df[column] < lower_fence) | (filtered_df[column] > upper_fence)                        
                     # Remove rows that match the combined mask
                     filtered_df = filtered_df.drop(filtered_df[outlier_mask].index)                        
                     action = 'Remove_outliers_'
                 elif replace_with_fences_button:
                     # Replace outliers with fences values 
-                    filtered_df.loc[(filtered_df[modified_col] < lower_fence), modified_col] = lower_fence
-                    filtered_df.loc[(filtered_df[modified_col] > upper_fence), modified_col] = upper_fence
+                    filtered_df.loc[(filtered_df[column] < lower_fence), column] = lower_fence
+                    filtered_df.loc[(filtered_df[column] > upper_fence), column] = upper_fence
                     action = 'Replace_outliers_with_fences_'
                 elif replace_with_median_button:
                     # Replace outliers with median value 
-                    filtered_df.loc[(filtered_df[modified_col] < lower_fence), modified_col] = median
-                    filtered_df.loc[(filtered_df[modified_col] > upper_fence), modified_col] = median
+                    filtered_df.loc[(filtered_df[column] < lower_fence), column] = median
+                    filtered_df.loc[(filtered_df[column] > upper_fence), column] = median
                     action = 'Replace_outliers_with_median_'
                 elif fixed_max_value_button:
-                    fixed_maximum_values[col] = st.number_input(f"Enter maximum fixed value for {modified_col}, minimum value set to be 0", min_value=0.0,value = round(upper_fence,2))
-                    filtered_df = filtered_df[filtered_df[modified_col] <= fixed_maximum_values[col]]
+                    fixed_maximum_values[col] = st.number_input(f"Enter maximum fixed value for {column}, minimum value set to be 0", min_value=0.0,value = round(upper_fence,2))
+                    filtered_df = filtered_df[filtered_df[column] <= fixed_maximum_values[col]]
                     action = 'Set_fixed_maximum_value_'
                     fixed_value_flag = True
 
