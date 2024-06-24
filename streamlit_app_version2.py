@@ -333,7 +333,7 @@ if uploaded_file:
     data = df
 
     outlier_finiding_methods = ['Interquartile Range','Percentile Based']
-    chosen_method = st.selectbox(label="Select outlier finding method, this will determine the outlier classification, default is IQR", options=outlier_finiding_methods)  
+    chosen_method = st.selectbox(label="Select outlier finding method, this will determine the outlier classification (default is IQR)", options=outlier_finiding_methods)  
     if chosen_method == 'Percentile Based':
         bottom_percentile,top_percentile = st.slider("Please select a range of values for top and bottom percentiles", 0, 100, (5,95))
 
