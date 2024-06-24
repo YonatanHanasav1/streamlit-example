@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 import numpy as np
 
-def calculate_IQR(data,col):
+def calculate_IQR(data,col,event_type_column):
     IQR_data = data.copy()
     column = col
     # Calculate the quartiles and fences
@@ -28,30 +28,28 @@ def calculate_percentiles_method(data,col,top_percentile,bottom_percentile):
 
     return median,lower_fence,upper_fence
 
-def format_and_display_table(data, title, column_str, id_column, event_type):    
+def format_and_display_table(data, column, id_column, event_type_column):    
     formatted_table = data.reset_index(drop=True)
     formatted_table.index += 1
-    formatted_table[column_str] = formatted_table[column_str]
-    formatted_table[column_str] = formatted_table[column_str].map(lambda x: "{:,.0f}".format(x))
+    formatted_table[column] = formatted_table[column]
+    formatted_table[column] = formatted_table[column].map(lambda x: "{:,.0f}".format(x))
     formatted_table[id_column] = formatted_table[id_column].astype(str)
-    formatted_table[event_type] = formatted_table[event_type].astype(str)
-    formatted_table = formatted_table[[id_column, column_str,event_type]]
+    formatted_table[event_type_column] = formatted_table[event_type_column].astype(str)
+    formatted_table = formatted_table[[id_column, column,event_type_column]]
     st.table(formatted_table)
 
-def data_details(column_str, data, chosen_method,event_type):
-    column = column_str
+def data_details(column, data, chosen_method,event_type_column):
     data = data.copy()
-
     st.markdown(f'You are using {chosen_method} method to define outliers')
 
-    for type in data['event_type'].unique():
+    for type in data[event_type_column].unique():
         data_copy = data.copy()
-        data_copy = data[data['event_type'] == type]
+        data_copy = data[data[event_type_column] == type]
 
         if chosen_method == 'Interquartile Range':
-            median,lower_fence,upper_fence = calculate_IQR(data_copy,column)
+            median,lower_fence,upper_fence = calculate_IQR(data_copy,column,event_type_column)
         else:
-            median = calculate_IQR(data_copy,column)[0]
+            median = calculate_IQR(data_copy,column,event_type_column)[0]
             median,lower_fence,upper_fence = calculate_percentiles_method(data_copy,column,top_percentile,bottom_percentile)
 
         # Display fences and median in a table
@@ -64,17 +62,15 @@ def data_details(column_str, data, chosen_method,event_type):
         st.table(fences_median_df)
 
         # Identify and display highest and lowest 5 outliers
-        highest_5_outliers = data_copy[[column,investigation_id,event_type]].sort_values(by=column, ascending=False).head(5)
+        highest_5_outliers = data_copy[[column,investigation_id,event_type_column]].sort_values(by=column, ascending=False).head(5)
         col1= st.columns(1)[0]
 
         with col1:
             title_text = f"Highest 5 outliers for {type} {column}:"
             st.write(title_text)
-            format_and_display_table(highest_5_outliers, title_text, column, investigation_id, event_type)
+            format_and_display_table(highest_5_outliers, column, investigation_id, event_type_column)
 
-def boxplotter(column_str, data, chosen_method):
-    column = column_str
-    
+def boxplotter(column, data, chosen_method):    
     boxplot_data = data.copy()
     st.subheader(f"Box Plot of {column}")
     
@@ -90,18 +86,16 @@ def boxplotter(column_str, data, chosen_method):
         plot = px.box(data_frame=boxplot_data, x=column, y='event_type')
         st.plotly_chart(plot, theme="streamlit", use_container_width=True)
 
-def histogram(column_str, data):
-    column = column_str
-
-    if chosen_method == 'Interquartile Range':
-        median,lower_fence,upper_fence = calculate_IQR(data,column)
-    else:
-        median = calculate_IQR(data,column)[0]
-        median,lower_fence,upper_fence = calculate_percentiles_method(data,column,top_percentile,bottom_percentile)
-
-    for type in data['event_type'].unique():
+def histogram(column, data, chosen_method, event_type_column):
+    for type in data[event_type_column].unique():
         data_copy = data.copy()
-        data_copy = data[data['event_type'] == type]
+        data_copy = data[data[event_type_column] == type]
+
+        if chosen_method == 'Interquartile Range':
+            median,lower_fence,upper_fence = calculate_IQR(data_copy,column,event_type_column)
+        else:
+            median = calculate_IQR(data_copy,column,event_type_column)[0]
+            median,lower_fence,upper_fence = calculate_percentiles_method(data_copy,column,top_percentile,bottom_percentile)
 
         histogram_data = data_copy
         st.subheader(f"Histogram of {type} {column}")
@@ -115,18 +109,18 @@ def histogram(column_str, data):
 
         st.plotly_chart(plot, theme="streamlit", use_container_width=True)
 
-def bar_chart_sum_vs_non_outliers(data, col):
+def bar_chart_sum_vs_non_outliers(data, col, event_type_column):
     column = col
 
-    for type in data['event_type'].unique():
+    for type in data[event_type_column].unique():
         data_copy = data.copy()
-        data_copy = data[data['event_type'] == type]
+        data_copy = data[data[event_type_column] == type]
         bar_chart_data = data_copy
 
         if chosen_method == 'Interquartile Range':
-                median,lower_fence,upper_fence = calculate_IQR(data,column)
+                median,lower_fence,upper_fence = calculate_IQR(data,column,event_type_column)
         else:
-            median = calculate_IQR(data,column)[0]
+            median = calculate_IQR(data,column,event_type_column)[0]
             median,lower_fence,upper_fence = calculate_percentiles_method(data,column,top_percentile,bottom_percentile)
 
         # Sum of all values
@@ -183,7 +177,7 @@ def stacked_graph(data, column):
     if column == 'event_category':
         colors = {'maintenance': 'green', 'installation': 'orange', 'service': 'blue'}
         title = 'Number of Events in each Event Cetegory Group by Year'
-    elif column == 'event_type':
+    elif column == event_type_column:
         colors = {'remote': 'orange', 'field': 'blue'}
         title = 'Number of Events in each Event Type Group by Year'
 
@@ -320,9 +314,7 @@ if uploaded_file:
 
     st.title("Settings")
     investigation_id = st.selectbox(label='Select investigation ID column', options= list_of_columns)
-    event_type = st.selectbox(label='Select event_type (field / remote) column', options= list_of_columns)
-    if event_type:
-        st.write(event_type)
+    event_type_column = st.selectbox(label='Select event_type (field / remote) column', options= list_of_columns)
     event_category = st.selectbox(label='Select event category column', options= list_of_columns)
     # Get unique values from the selected column
     unique_values = df[event_category].unique() 
@@ -364,10 +356,10 @@ if uploaded_file:
     
     if plot_selection:
         for col in plot_selection:
-            data_details(col, data, chosen_method, event_type)
+            data_details(col, data, chosen_method, event_type_column)
             boxplotter(col, data, chosen_method)
-            histogram(col, data)
-            bar_chart_sum_vs_non_outliers(data, col)
+            histogram(col, data, chosen_method, event_type_column)
+            bar_chart_sum_vs_non_outliers(data, col, event_type_column)
 
     st.title("Filter Data")
     st.markdown("Here you can filter out values, and remove outlier rows")
@@ -384,7 +376,7 @@ if uploaded_file:
             df_copy = data.copy() #Used for filtering information section
             column = col
             if chosen_method == 'Interquartile Range':
-                median,lower_fence,upper_fence = calculate_IQR(df_copy,column)
+                median,lower_fence,upper_fence = calculate_IQR(df_copy,column,event_type_column)
             if chosen_method == 'Percentile Based':
                 median,lower_fence,upper_fence = calculate_percentiles_method(df_copy,column,top_percentile,bottom_percentile)
 
@@ -436,38 +428,36 @@ if uploaded_file:
         fixed_value_flag = False # Initialize flag variable
         # Continue displaying buttons for automatic filtering actions
         st.subheader(col)
-        replace_with_fences_button = st.button("Replace outliers with Fences Values",key = str(col)+'replace_with_fences_button')
-        replace_with_median_button = st.button("Replace outliers with Median",key = str(col)+'replace_with_median_button')
-        remove_outliers_button = st.button("Remove All Outliers",key = str(col)+'remove_outliers_button')
-        fixed_max_value_button = st.checkbox("Set Maximum Fixed Value",key = str(col)+'fixed_max_value_button')
+        filtering_options_list = ['Replace outliers with fences','Replace outliers with median','Remove all outliers','Choose fixed max value']
+        filter_radio = st.radio(label = 'Choose the wanted filtering method', options = filtering_options_list, key = f"{col}_filter_radio")
 
-        if remove_outliers_button or replace_with_fences_button or replace_with_median_button or fixed_max_value_button:
+        if filter_radio:
             for col in filter_columns:
                 column = col
                 filtered_df_copy = data.copy()
                 if chosen_method == 'Interquartile Range':
-                    median,lower_fence,upper_fence = calculate_IQR(filtered_df_copy,column)
+                    median,lower_fence,upper_fence = calculate_IQR(filtered_df_copy,column,event_type_column)
                 if chosen_method == 'Percentile Based':
                     median,lower_fence,upper_fence = calculate_percentiles_method(filtered_df_copy,column,top_percentile,bottom_percentile)
 
                 action = None  # Initialize action variable
-                if remove_outliers_button:
+                if filter_radio == 'Remove all outliers':
                     # Create a mask to identify outliers
                     outlier_mask = (filtered_df[column] < lower_fence) | (filtered_df[column] > upper_fence)                        
                     # Remove rows that match the combined mask
                     filtered_df = filtered_df.drop(filtered_df[outlier_mask].index)                        
-                    action = 'Remove_outliers_'
-                elif replace_with_fences_button:
+                    action = 'Remove_all_outliers_'
+                elif filter_radio == 'Replace outliers with fences':
                     # Replace outliers with fences values 
                     filtered_df.loc[(filtered_df[column] < lower_fence), column] = lower_fence
                     filtered_df.loc[(filtered_df[column] > upper_fence), column] = upper_fence
                     action = 'Replace_outliers_with_fences_'
-                elif replace_with_median_button:
+                elif filter_radio == 'Replace outliers with median':
                     # Replace outliers with median value 
                     filtered_df.loc[(filtered_df[column] < lower_fence), column] = median
                     filtered_df.loc[(filtered_df[column] > upper_fence), column] = median
                     action = 'Replace_outliers_with_median_'
-                elif fixed_max_value_button:
+                elif filter_radio == 'Choose fixed max value':
                     fixed_maximum_values[col] = st.number_input(f"Enter maximum fixed value for {column}, minimum value set to be 0", min_value=0.0,value = round(upper_fence,2))
                     filtered_df = filtered_df[filtered_df[column] <= fixed_maximum_values[col]]
                     action = 'Set_fixed_maximum_value_'
@@ -475,7 +465,7 @@ if uploaded_file:
 
         csv_filename = f"sc_events_filtered_"
         if filter_columns:
-            if remove_outliers_button or replace_with_fences_button or replace_with_median_button:
+            if filter_radio in ['Replace outliers with fences','Replace outliers with median','Remove all outliers']:
                 if action:
                     csv_filename+= action
                     csv_filename += "_".join([f"{col}" for col in filter_values.keys()])
@@ -488,7 +478,7 @@ if uploaded_file:
             download_button_key = "_".join([f"{col}_{value}" for col, value in filter_values.items()])
 
         # Display the total filtered percentage above the download file button
-        if remove_outliers_button or replace_with_fences_button or replace_with_median_button or fixed_value_flag:            
+        if filter_radio:
             total_filtered_percentage = round(((service_rows - filtered_df.shape[0]) / service_rows) * 100,2)
             st.subheader("Total Filtered:")
             formatted_filtered_out_rows = "{:,.0f}".format(service_rows - filtered_df.shape[0])
@@ -496,6 +486,14 @@ if uploaded_file:
 
             csv_data = filtered_df.to_csv(index=False)
             st.download_button(label=f"Download {csv_filename}", data=csv_data, file_name=csv_filename, key=f"download_button_{download_button_key}")
+
+            see_my_changes_box = st.checkbox(label='Select this box to see how the data changed',key = f'{col} see_my_changes_box')
+            if see_my_changes_box:
+                for col in filter_columns:
+                    data_details(col, filtered_df, chosen_method, event_type_column)
+                    boxplotter(col, filtered_df, chosen_method)
+                    histogram(col, filtered_df, chosen_method, event_type_column)
+                    bar_chart_sum_vs_non_outliers(filtered_df, col, event_type_column)
 
     # Additional Graphs
     # st.title("Additional Graphs")
@@ -508,7 +506,7 @@ if uploaded_file:
     #     stacked_graph(full_df,'event_category')
 
     # if ET_stacked_graph_check_box:
-    #     stacked_graph(df,'event_type')
+    #     stacked_graph(df,event_type_column)
 
     # if costs_stacked_graph_check_box:
     #     # columns_to_plot = ['total_labor_cost', 'total_part_cost', 'travel_cost_total']
