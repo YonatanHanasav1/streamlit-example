@@ -70,21 +70,27 @@ def data_details(column, data, chosen_method,event_type_column):
             st.write(title_text)
             format_and_display_table(highest_5_outliers, column, investigation_id, event_type_column)
 
-def boxplotter(column, data, chosen_method):    
-    boxplot_data = data.copy()
+def boxplotter(column, data, chosen_method, data2=None):
     st.subheader(f"Box Plot of {column}")
-    
     st.write("Data points showing on plot are the values outside of fences")
     
-    # Create the box plot
+    # Create the box plot for the original dataset
+    st.subheader("Original Dataset")
     if chosen_method == 'Interquartile Range':
-        plot = px.box(data_frame=boxplot_data, x=column, y='event_type')
-        st.plotly_chart(plot, theme="streamlit", use_container_width=True)
-    
+        plot1 = px.box(data_frame=data, x=column, y='event_type', orientation='h')
     else:
-        median,lower_fence,upper_fence = calculate_percentiles_method(data,column,top_percentile,bottom_percentile)
-        plot = px.box(data_frame=boxplot_data, x=column, y='event_type')
-        st.plotly_chart(plot, theme="streamlit", use_container_width=True)
+        plot1 = px.box(data_frame=data, x=column, y='event_type', orientation='h')
+    st.plotly_chart(plot1, theme="streamlit", use_container_width=True)
+    
+    # If a second dataset is provided, create a box plot for the alternated dataset
+    if data2 is not None:
+        st.subheader("Alternated Dataset")
+        if chosen_method == 'Interquartile Range':
+            plot2 = px.box(data_frame=data2, x=column, y='event_type', orientation='h')
+        else:
+            plot2 = px.box(data_frame=data2, x=column, y='event_type', orientation='h')
+        st.plotly_chart(plot2, theme="streamlit", use_container_width=True)
+
 
 def histogram(column, data, chosen_method, event_type_column):
     for type in data[event_type_column].unique():
@@ -100,7 +106,7 @@ def histogram(column, data, chosen_method, event_type_column):
         histogram_data = data_copy
         st.subheader(f"Histogram of {type} {column}")
         
-        plot = px.histogram(data_frame=histogram_data, x=column, nbins=30)
+        plot = px.histogram(data_frame=histogram_data, x=column, nbins=35)
         plot.add_vline(x=median, line_dash="dash", line_color="red", annotation_text=f'Median: {median:.2f}', annotation_position="top left")
         plot.add_vline(x=upper_fence, line_dash="dash", line_color="red", annotation_text=f'Upper fence: {upper_fence:.2f}', annotation_position="top right")
         
@@ -312,7 +318,7 @@ if uploaded_file:
     full_df = df.copy() # Needed for event category stacked graph
     list_of_columns = df.columns.to_list()
 
-    st.title("Settings")
+    st.title("Mandatory Columns Mapping")
     investigation_id = st.selectbox(label='Select investigation ID column', options= list_of_columns)
     event_type_column = st.selectbox(label='Select event_type (field / remote) column', options= list_of_columns)
     event_category = st.selectbox(label='Select event category column', options= list_of_columns)
@@ -337,6 +343,7 @@ if uploaded_file:
     if chosen_method == 'Percentile Based':
         bottom_percentile,top_percentile = st.slider("Please select a range of values for top and bottom percentiles", 0, 100, (5,95))
 
+    st.title("Settings")
     check_box1 = st.checkbox(label="Display a random dataset sample")
     if check_box1:
         st.subheader('Random Data Sample')
@@ -491,7 +498,7 @@ if uploaded_file:
             if see_my_changes_box:
                 for col in filter_columns:
                     data_details(col, filtered_df, chosen_method, event_type_column)
-                    boxplotter(col, filtered_df, chosen_method)
+                    boxplotter(col, data, chosen_method,filtered_df)
                     histogram(col, filtered_df, chosen_method, event_type_column)
                     bar_chart_sum_vs_non_outliers(filtered_df, col, event_type_column)
 
