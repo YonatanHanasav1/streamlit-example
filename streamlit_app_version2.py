@@ -91,7 +91,6 @@ def boxplotter(column, data, chosen_method, data2=None):
             plot2 = px.box(data_frame=data2, x=column, y='event_type', orientation='h')
         st.plotly_chart(plot2, theme="streamlit", use_container_width=True)
 
-
 def histogram(column, data, chosen_method, event_type_column):
     for type in data[event_type_column].unique():
         data_copy = data.copy()
@@ -303,9 +302,9 @@ explanation = '''In a box plot, the upper and lower fences are used to identify 
             Upper Fence: Q3 + K x IQR
             Here: Q1 is the first quartile (25th percentile), Q3 is the third quartile (75th percentile), IQR is the interquartile range (Q3-Q1), K is a constant multiplier that determines the range beyond which data points are considered potential outliers, in our case K = 1.5.'''
 
-uploaded_file = st.file_uploader(label= '', type=["csv","xlsx"])
-st.title('Outliers Analysis')
 
+st.title('Outliers Analysis')
+uploaded_file = st.file_uploader(label= '', type=["csv","xlsx"])
 if not uploaded_file:
     st.write('To start analysis please upload data file')
 
