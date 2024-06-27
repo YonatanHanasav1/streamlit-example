@@ -4,6 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 import plotly.express as px
+from plotly.subplots import make_subplots
 import numpy as np
 
 def calculate_IQR(data,col,event_type_column):
@@ -70,49 +71,54 @@ def data_details(column, data, chosen_method,event_type_column):
             st.write(title_text)
             format_and_display_table(highest_5_outliers, column, investigation_id, event_type_column)
 
-def boxplotter(column, data, chosen_method, data2=None):
+def boxplotter(column, data, chosen_method):
     st.subheader(f"Box Plot of {column}")
     st.write("Data points showing on plot are the values outside of fences")
     
     # Create the box plot for the original dataset
-    st.subheader("Original Dataset")
     if chosen_method == 'Interquartile Range':
         plot1 = px.box(data_frame=data, x=column, y='event_type', orientation='h')
     else:
         plot1 = px.box(data_frame=data, x=column, y='event_type', orientation='h')
     st.plotly_chart(plot1, theme="streamlit", use_container_width=True)
-    
-    # If a second dataset is provided, create a box plot for the alternated dataset
-    if data2 is not None:
-        st.subheader("Alternated Dataset")
-        if chosen_method == 'Interquartile Range':
-            plot2 = px.box(data_frame=data2, x=column, y='event_type', orientation='h')
-        else:
-            plot2 = px.box(data_frame=data2, x=column, y='event_type', orientation='h')
-        st.plotly_chart(plot2, theme="streamlit", use_container_width=True)
 
 def histogram(column, data, chosen_method, event_type_column):
-    for type in data[event_type_column].unique():
+    fig = make_subplots(rows=2, cols=1)
+
+    x_min = data[column].min()
+    x_max = data[column].max()
+
+    for i, type in enumerate(data[event_type_column].unique()):
         data_copy = data.copy()
         data_copy = data[data[event_type_column] == type]
 
         if chosen_method == 'Interquartile Range':
-            median,lower_fence,upper_fence = calculate_IQR(data_copy,column,event_type_column)
+            median, lower_fence, upper_fence = calculate_IQR(data_copy, column, event_type_column)
         else:
-            median = calculate_IQR(data_copy,column,event_type_column)[0]
-            median,lower_fence,upper_fence = calculate_percentiles_method(data_copy,column,top_percentile,bottom_percentile)
+            median = calculate_IQR(data_copy, column, event_type_column)[0]
+            median, lower_fence, upper_fence = calculate_percentiles_method(data_copy, column, top_percentile, bottom_percentile)
 
         histogram_data = data_copy
-        st.subheader(f"Histogram of {type} {column}")
-        
-        plot = px.histogram(data_frame=histogram_data, x=column, nbins=35)
-        plot.add_vline(x=median, line_dash="dash", line_color="red", annotation_text=f'Median: {median:.2f}', annotation_position="top left")
-        plot.add_vline(x=upper_fence, line_dash="dash", line_color="red", annotation_text=f'Upper fence: {upper_fence:.2f}', annotation_position="top right")
-        
-        # Update the layout to set the y-axis title
-        plot.update_layout(yaxis_title='Number of Events')
 
-        st.plotly_chart(plot, theme="streamlit", use_container_width=True)
+        fig.add_trace(
+            go.Histogram(x=histogram_data[column], nbinsx=35),
+            row=i+1, col=1
+        )
+        fig.add_vline(x=median, line_dash="dash", line_color="red", annotation_text=f'Median: {median:.2f}', annotation_position="top left", row=i+1, col=1)
+        fig.add_vline(x=upper_fence, line_dash="dash", line_color="red", annotation_text=f'Upper fence: {upper_fence:.2f}', annotation_position="top right", row=i+1, col=1)
+
+        # Update the layout to set the y-axis title for each subplot independently
+        fig.update_yaxes(title_text='Number of Events', row=i+1, col=1)
+        fig.update_xaxes(range=[x_min, x_max], row=i+1, col=1)
+
+        # Adjust annotation position dynamically based on the maximum y-axis value
+        max_y = max(fig.data[i]['y']) if fig.data[i]['y'] else 0
+        if max_y:
+            fig.update_annotations({'y': max_y}, selector=dict(text=f'Median: {median:.2f}'))
+
+    fig.update_layout(height=850, width=600)
+    st.subheader(f"Histogram of {column} by {event_type_column}")
+    st.plotly_chart(fig, theme="streamlit", use_container_width=True)
 
 def bar_chart_sum_vs_non_outliers(data, col, event_type_column):
     column = col
@@ -362,7 +368,7 @@ if uploaded_file:
     
     if plot_selection:
         for col in plot_selection:
-            data_details(col, data, chosen_method, event_type_column)
+            # data_details(col, data, chosen_method, event_type_column)
             boxplotter(col, data, chosen_method)
             histogram(col, data, chosen_method, event_type_column)
             bar_chart_sum_vs_non_outliers(data, col, event_type_column)
@@ -496,10 +502,9 @@ if uploaded_file:
             see_my_changes_box = st.checkbox(label='Select this box to see how the data changed',key = f'{col} see_my_changes_box')
             if see_my_changes_box:
                 for col in filter_columns:
-                    data_details(col, filtered_df, chosen_method, event_type_column)
-                    boxplotter(col, data, chosen_method,filtered_df)
+                    # data_details(col, filtered_df, chosen_method, event_type_column)
+                    boxplotter(col, filtered_df, chosen_method)
                     histogram(col, filtered_df, chosen_method, event_type_column)
-                    bar_chart_sum_vs_non_outliers(filtered_df, col, event_type_column)
 
     # Additional Graphs
     # st.title("Additional Graphs")
