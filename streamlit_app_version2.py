@@ -176,55 +176,6 @@ def bar_chart_sum_vs_non_outliers(data, col, event_type_column):
             units = 'dollars'
         st.markdown(f'Outliers values adding up {formatted_difference_of_change} {units} which is {percentage_of_change}% out of {column} sum of values for {type} event type.')
 
-
-    # Convert 'visit_date' to datetime 
-    data['visit_date'] = pd.to_datetime(data['visit_date'])
-    # Extract year from the date column
-    data['year'] = data['visit_date'].dt.year
-    data['month'] = data['visit_date'].dt.month
-    # Group by year and month and count the number of records
-    monthly_counts = data.groupby(['year', 'month']).size().reset_index(name='counts')
-    # Get the unique years in the dataset
-    years = monthly_counts['year'].unique()
-
-    # Group data by year and specified column and count occurrences
-    counted_data = data.groupby(['year', column]).size().reset_index(name='count')
-
-    # Calculate the total count for each year
-    total_count_by_year = counted_data.groupby('year')['count'].sum()
-
-    # Calculate the threshold for 5% of the total count
-    threshold = total_count_by_year * 0.05
-
-    # Filter counted_data to include only rows where the count is greater than the threshold
-    counted_data_filtered = counted_data[counted_data['count'] > threshold[counted_data['year']].values]
-
-    # Plot bar chart using Plotly
-    fig = px.bar(counted_data_filtered, x='year', y='count', color=column, text='count',
-                 labels={'year': 'Year', 'count': 'Number of Events'}, 
-                 title=f'Number of Events by each {column} by Year',
-                 barmode='group')
-
-    fig.update_layout(xaxis=dict(tickmode='linear', tick0=min(data['year']), dtick=1),
-                      uniformtext_minsize=8, uniformtext_mode='show',  # Adjust label settings
-                      xaxis_title='Year', yaxis_title='Number of Events',  # Label axis titles
-                      bargap=0.1)  # Adjust the gap between bars
-
-    fig.update_traces(textangle=0, textposition='auto',  # Set label position outside bars
-                      texttemplate='%{y:,.0f}', textfont=dict(size=10))  # Adjust label settings
-
-    st.plotly_chart(fig)
-
-    # Loop through each year and check if all 12 months are present
-    for year in years:
-        year_data = monthly_counts[monthly_counts['year'] == year]
-        
-        if len(year_data) == 12 and set(year_data['month']) == set(range(1, 13)):
-            pass
-        else:
-            missing_months = set(range(1, 13)) - set(year_data['month'])
-            st.write(f"Please notice that year {year} is missing data for months: {sorted(missing_months)}")
-
 explanation = '''In a box plot, the upper and lower fences are used to identify potential outliers in the data.
             These fences are calculated based on the interquartile range (IQR), which is a measure of statistical data scatter.
             The formula for calculating the upper and lower fences is as follows:
@@ -288,7 +239,7 @@ if uploaded_file:
     st.title("Plots")
     #Use only the numeric columns
     list_of_columns = df.select_dtypes(include=['int', 'float']).columns
-    plot_selection = st.multiselect(label="Select columns to create plots, only numeric columns are useable. The plots are splitted by event type (remote / field)", options=list_of_columns)
+    plot_selection = st.multiselect(label="Select columns to create plots, only numeric columns are useable. The plots are splitted by event type (remote / field).", options=list_of_columns)
     
     if plot_selection:
         for col in plot_selection:
@@ -297,7 +248,7 @@ if uploaded_file:
             bar_chart_sum_vs_non_outliers(data, col, event_type_column)
 
     st.title("Filter Data")
-    st.markdown("Here you can filter out values, and remove outlier rows")
+    st.markdown("Here you can alter the column values as needed")
     
     filter_columns = st.multiselect("Select columns for filtering", options=list_of_columns)
     filter_values = {}
@@ -360,10 +311,9 @@ if uploaded_file:
 
     for col in filter_columns:
         filter_values[col] = None
-        fixed_value_flag = False # Initialize flag variable
         # Continue displaying buttons for automatic filtering actions
         st.subheader(col)
-        filtering_options_list = ['Replace outliers with fences','Replace outliers with median','Remove all outliers','Choose fixed max value']
+        filtering_options_list = [f'Replace outliers with fences ({upper_fence})',f'Replace outliers with median ({median})','Choose a fixed maximum value, any value exceeding this maximum will be adjusted to match the chosen value.','Remove all outliers (choosing this options will remove the whole outlier row)']
         filter_radio = st.radio(label = 'Choose the wanted filtering method', options = filtering_options_list, key = f"{col}_filter_radio")
 
         if filter_radio:
@@ -376,52 +326,32 @@ if uploaded_file:
                     median,lower_fence,upper_fence = calculate_percentiles_method(filtered_df_copy,column,top_percentile,bottom_percentile)
 
                 action = None  # Initialize action variable
-                if filter_radio == 'Remove all outliers':
+                if filter_radio == 'Remove all outliers (choosing this options will remove the whole outlier row)':
                     # Create a mask to identify outliers
                     outlier_mask = (filtered_df[column] < lower_fence) | (filtered_df[column] > upper_fence)                        
                     # Remove rows that match the combined mask
                     filtered_df = filtered_df.drop(filtered_df[outlier_mask].index)                        
                     action = 'Remove_all_outliers_'
-                elif filter_radio == 'Replace outliers with fences':
+                    total_filtered_percentage = round(((service_rows - filtered_df.shape[0]) / service_rows) * 100,2)
+                    formatted_filtered_out_rows = "{:,.0f}".format(service_rows - filtered_df.shape[0])
+                    st.write(f"{(formatted_filtered_out_rows)} rows were filtered out, which are {total_filtered_percentage}% of total original file rows")
+                elif filter_radio == f'Replace outliers with fences ({upper_fence})':
                     # Replace outliers with fences values 
                     filtered_df.loc[(filtered_df[column] < lower_fence), column] = lower_fence
                     filtered_df.loc[(filtered_df[column] > upper_fence), column] = upper_fence
                     action = 'Replace_outliers_with_fences_'
-                elif filter_radio == 'Replace outliers with median':
+                elif filter_radio == f'Replace outliers with median ({median})':
                     # Replace outliers with median value 
                     filtered_df.loc[(filtered_df[column] < lower_fence), column] = median
                     filtered_df.loc[(filtered_df[column] > upper_fence), column] = median
                     action = 'Replace_outliers_with_median_'
-                elif filter_radio == 'Choose fixed max value':
-                    fixed_maximum_values[col] = st.number_input(f"Enter maximum fixed value for {column}, minimum value set to be 0", min_value=0.0,value = round(upper_fence,2))
-                    filtered_df = filtered_df[filtered_df[column] <= fixed_maximum_values[col]]
+                elif filter_radio == 'Choose a fixed maximum value, any value exceeding this maximum will be adjusted to match the chosen value.':
+                    fixed_maximum_values[col] = st.number_input(f"Enter maximum fixed value for {column}",value = round(upper_fence,2))
+                    filtered_df[column] = filtered_df[column].apply(lambda x: min(x, fixed_maximum_values[col]))
                     action = 'Set_fixed_maximum_value_'
-                    fixed_value_flag = True
-
-        csv_filename = f"sc_events_filtered_"
-        if filter_columns:
-            if filter_radio in ['Replace outliers with fences','Replace outliers with median','Remove all outliers']:
-                if action:
-                    csv_filename+= action
-                    csv_filename += "_".join([f"{col}" for col in filter_values.keys()])
-            if fixed_value_flag:   
-                    if action:
-                        csv_filename+= action
-                        csv_filename += "_".join([f"{col}_{round(value,2)}" for col, value in fixed_maximum_values.items()])
-            csv_filename += ".csv"
-
-            download_button_key = "_".join([f"{col}_{value}" for col, value in filter_values.items()])
 
         # Display the total filtered percentage above the download file button
         if filter_radio:
-            total_filtered_percentage = round(((service_rows - filtered_df.shape[0]) / service_rows) * 100,2)
-            st.subheader("Total Filtered:")
-            formatted_filtered_out_rows = "{:,.0f}".format(service_rows - filtered_df.shape[0])
-            st.write(f"{(formatted_filtered_out_rows)} rows were filtered out, which are {total_filtered_percentage}% of total original file rows")
-
-            csv_data = filtered_df.to_csv(index=False)
-            st.download_button(label=f"Download {csv_filename}", data=csv_data, file_name=csv_filename, key=f"download_button_{download_button_key}")
-
             see_my_changes_box = st.checkbox(label='Select this box to see how the data changed',key = f'{col} see_my_changes_box')
             if see_my_changes_box:
                 for col in filter_columns:
