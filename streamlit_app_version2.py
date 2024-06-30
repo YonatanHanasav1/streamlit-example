@@ -29,17 +29,7 @@ def calculate_percentiles_method(data,col,top_percentile,bottom_percentile):
 
     return median,lower_fence,upper_fence
 
-def format_and_display_table(data, column, id_column, event_type_column):    
-    formatted_table = data.reset_index(drop=True)
-    formatted_table.index += 1
-    formatted_table[column] = formatted_table[column]
-    formatted_table[column] = formatted_table[column].map(lambda x: "{:,.0f}".format(x))
-    formatted_table[id_column] = formatted_table[id_column].astype(str)
-    formatted_table[event_type_column] = formatted_table[event_type_column].astype(str)
-    formatted_table = formatted_table[[id_column, column,event_type_column]]
-    st.table(formatted_table)
 
-def data_details(column, data, chosen_method,event_type_column):
     data = data.copy()
     st.markdown(f'You are using {chosen_method} method to define outliers')
 
@@ -88,9 +78,9 @@ def histogram(column, data, chosen_method, event_type_column):
     x_min = data[column].min()
     x_max = data[column].max()
 
-    for i, type in enumerate(data[event_type_column].unique()):
+    for i, event_type in enumerate(data[event_type_column].unique()):
         data_copy = data.copy()
-        data_copy = data[data[event_type_column] == type]
+        data_copy = data[data[event_type_column] == event_type]
 
         if chosen_method == 'Interquartile Range':
             median, lower_fence, upper_fence = calculate_IQR(data_copy, column, event_type_column)
@@ -101,11 +91,29 @@ def histogram(column, data, chosen_method, event_type_column):
         histogram_data = data_copy
 
         fig.add_trace(
-            go.Histogram(x=histogram_data[column], nbinsx=35),
+            go.Histogram(
+                x=histogram_data[column], 
+                nbinsx=35, 
+                name=str(event_type)  # Set the name attribute to the event type
+            ),
             row=i+1, col=1
         )
-        fig.add_vline(x=median, line_dash="dash", line_color="red", annotation_text=f'Median: {median:.2f}', annotation_position="top left", row=i+1, col=1)
-        fig.add_vline(x=upper_fence, line_dash="dash", line_color="red", annotation_text=f'Upper fence: {upper_fence:.2f}', annotation_position="top right", row=i+1, col=1)
+        fig.add_vline(
+            x=median, 
+            line_dash="dash", 
+            line_color="red", 
+            annotation_text=f'Median: {median:.2f}', 
+            annotation_position="top left", 
+            row=i+1, col=1
+        )
+        fig.add_vline(
+            x=upper_fence, 
+            line_dash="dash", 
+            line_color="red", 
+            annotation_text=f'Upper fence: {upper_fence:.2f}', 
+            annotation_position="top right", 
+            row=i+1, col=1
+        )
 
         # Update the layout to set the y-axis title for each subplot independently
         fig.update_yaxes(title_text='Number of Events', row=i+1, col=1)
@@ -145,7 +153,7 @@ def bar_chart_sum_vs_non_outliers(data, col, event_type_column):
 
         # Prepare filtered_data for Plotly
         bar_chart_data = {
-            'Category': ['Sum of Values', 'Sum of Non-Outlier Values'],
+            'Category': [f'Sum of all {type} values', f'Sum of non-outlier {type} values'],
             str(column): [formatted_sum_all_values, formatted_sum_non_outlier_values]}
 
         # Create a DataFrame
@@ -168,91 +176,7 @@ def bar_chart_sum_vs_non_outliers(data, col, event_type_column):
             units = 'dollars'
         st.markdown(f'Outliers values adding up {formatted_difference_of_change} {units} which is {percentage_of_change}% out of {column} sum of values for {type} event type.')
 
-def stacked_graph(data, column):
-    # Convert 'visit_date' to datetime 
-    data['visit_date'] = pd.to_datetime(data['visit_date'])
-    # Extract year from the date column
-    data['year'] = data['visit_date'].dt.year
-    data['month'] = data['visit_date'].dt.month
-    # Group by year and month and count the number of records
-    monthly_counts = data.groupby(['year', 'month']).size().reset_index(name='counts')
-    # Get the unique years in the dataset
-    years = monthly_counts['year'].unique()
 
-    # Group data by year and specified column and count occurrences
-    stacked_data = data.groupby(['year', column]).size().unstack(fill_value=0)
-
-    # Plot stacked bar graph using Plotly
-    fig = go.Figure()
-    categories = stacked_data.columns
-    if column == 'event_category':
-        colors = {'maintenance': 'green', 'installation': 'orange', 'service': 'blue'}
-        title = 'Number of Events in each Event Cetegory Group by Year'
-    elif column == event_type_column:
-        colors = {'remote': 'orange', 'field': 'blue'}
-        title = 'Number of Events in each Event Type Group by Year'
-
-    for category in categories:
-        fig.add_trace(go.Bar(x=stacked_data.index, y=stacked_data[category], name=category, marker_color=colors[category]))
-
-    fig.update_layout(barmode='stack', xaxis_title="Year", yaxis_title="Number of Events",
-                      title=title, xaxis=dict(tickmode='linear', tick0=min(data['year']), dtick=1),
-                      uniformtext_minsize=12, uniformtext_mode='hide')
-
-    # Add count labels inside the bars
-    fig.update_traces(texttemplate='%{y:,.0f}', textposition='auto', textfont=dict(size=12, color='white', family='Arial, sans-serif'))
-
-    st.plotly_chart(fig)
-
-    # Loop through each year and check if all 12 months are present
-    for year in years:
-        year_data = monthly_counts[monthly_counts['year'] == year]
-        
-        if len(year_data) == 12 and set(year_data['month']) == set(range(1, 13)):
-            pass
-        else:
-            missing_months = set(range(1, 13)) - set(year_data['month'])
-            st.write(f"Please notice that year {year} is missing data for months: {sorted(missing_months)}")
-
-def stacked_sum_graph(data, columns):
-     # Convert 'visit_date' to datetime 
-    data['visit_date'] = pd.to_datetime(data['visit_date'])
-    # Extract year from the date column
-    data['year'] = data['visit_date'].dt.year
-    data['month'] = data['visit_date'].dt.month
-    # Group by year and month and count the number of records
-    monthly_counts = data.groupby(['year', 'month']).size().reset_index(name='counts')
-    # Get the unique years in the dataset
-    years = monthly_counts['year'].unique()
-
-    # Group data by year and sum up values for each column
-    summed_data = data.groupby('year')[columns].sum()
-
-    # Plot stacked bar graph using Plotly
-    fig = go.Figure()
-    for column in columns:
-        fig.add_trace(go.Bar(x=summed_data.index, y=summed_data[column], name=column))
-
-    fig.update_layout(barmode='stack', xaxis_title="Year", yaxis_title="Sum of $",
-                      title="Stacked Sum of Labor, Travel and Parts Costs by Year", xaxis=dict(tickmode='linear', tick0=min(data['year']), dtick=1),
-                      uniformtext_minsize=12, uniformtext_mode='hide')
-
-    # Add count labels inside the bars
-    fig.update_traces(texttemplate='%{y:,.0f}', textposition='auto', textfont=dict(size=12, color='white', family='Arial, sans-serif'))
-
-    st.plotly_chart(fig)
-
-    # Loop through each year and check if all 12 months are present
-    for year in years:
-        year_data = monthly_counts[monthly_counts['year'] == year]
-        
-        if len(year_data) == 12 and set(year_data['month']) == set(range(1, 13)):
-            pass
-        else:
-            missing_months = set(range(1, 13)) - set(year_data['month'])
-            st.write(f"Please notice that year {year} is missing data for months: {sorted(missing_months)}")
-
-def count_bar_chart(data, column):
     # Convert 'visit_date' to datetime 
     data['visit_date'] = pd.to_datetime(data['visit_date'])
     # Extract year from the date column
@@ -364,11 +288,10 @@ if uploaded_file:
     st.title("Plots")
     #Use only the numeric columns
     list_of_columns = df.select_dtypes(include=['int', 'float']).columns
-    plot_selection = st.multiselect(label="Select columns to create plots, only numeric columns are useable", options=list_of_columns)
+    plot_selection = st.multiselect(label="Select columns to create plots, only numeric columns are useable. The plots are splitted by event type (remote / field)", options=list_of_columns)
     
     if plot_selection:
         for col in plot_selection:
-            # data_details(col, data, chosen_method, event_type_column)
             boxplotter(col, data, chosen_method)
             histogram(col, data, chosen_method, event_type_column)
             bar_chart_sum_vs_non_outliers(data, col, event_type_column)
@@ -502,31 +425,5 @@ if uploaded_file:
             see_my_changes_box = st.checkbox(label='Select this box to see how the data changed',key = f'{col} see_my_changes_box')
             if see_my_changes_box:
                 for col in filter_columns:
-                    # data_details(col, filtered_df, chosen_method, event_type_column)
                     boxplotter(col, filtered_df, chosen_method)
                     histogram(col, filtered_df, chosen_method, event_type_column)
-
-    # Additional Graphs
-    # st.title("Additional Graphs")
-    # EC_stacked_graph_check_box = st.checkbox(label="Display a stacked graph of event category per year")
-    # ET_stacked_graph_check_box = st.checkbox(label="Display a stacked graph of event type per year")
-    # costs_stacked_graph_check_box = st.checkbox(label="Display a stacked graph of service costs per year")
-    # product_type_bar_chart_check_box = st.checkbox(label="Display a bar graph of product type per year")
-
-    # if EC_stacked_graph_check_box:
-    #     stacked_graph(full_df,'event_category')
-
-    # if ET_stacked_graph_check_box:
-    #     stacked_graph(df,event_type_column)
-
-    # if costs_stacked_graph_check_box:
-    #     # columns_to_plot = ['total_labor_cost', 'total_part_cost', 'travel_cost_total']
-    #     labor_cost = st.selectbox('Select labor cost column', list_of_columns)
-    #     part_cost = st.selectbox('Select part cost column', list_of_columns)
-    #     travel_cost = st.selectbox('Select travel cost', list_of_columns)
-    #     if labor_cost != '<select>' and part_cost != '<select>' and travel_cost != '<select>':
-    #         columns_to_plot = [labor_cost,part_cost,travel_cost]
-    #         stacked_sum_graph(data, columns_to_plot)
-
-    # if product_type_bar_chart_check_box:
-    #     count_bar_chart(data,'producttype_t2')
