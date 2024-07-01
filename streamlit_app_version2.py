@@ -142,7 +142,7 @@ if uploaded_file:
     df = pd.read_csv(uploaded_file, low_memory=False)
     st.write(f"Shape of the dataset: {df.shape}")
     st.write(f"Size of the dataset: {uploaded_file.size / (1024 * 1024):.2f} MB")
-    
+
     opening = ('The main purpose of this application is to find outliers within the dataset and filter them as needed.')
     st.write(opening)
     original_rows = df.shape[0]
@@ -156,7 +156,7 @@ if uploaded_file:
     # Get unique values from the selected column
     unique_values = df[event_category].unique() 
     # Select multiple values from the unique values
-    selected_values = st.multiselect("Select the value(s) to consider as service events", options=unique_values)
+    selected_values = st.multiselect("Select the value(s) to be considered as service events (only these rows will be included in the analysis)", options=unique_values)
     if selected_values:
         df = df[df[event_category].isin(selected_values)]
         service_rows = df.shape[0]
