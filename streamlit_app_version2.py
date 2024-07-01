@@ -176,14 +176,6 @@ def bar_chart_sum_vs_non_outliers(data, col, event_type_column):
             units = 'dollars'
         st.markdown(f'Outliers values adding up {formatted_difference_of_change} {units} which is {percentage_of_change}% out of {column} sum of values for {type} event type.')
 
-explanation = '''In a box plot, the upper and lower fences are used to identify potential outliers in the data.
-            These fences are calculated based on the interquartile range (IQR), which is a measure of statistical data scatter.
-            The formula for calculating the upper and lower fences is as follows:
-            Lower Fence: Q1 - K x IQR
-            Upper Fence: Q3 + K x IQR
-            Here: Q1 is the first quartile (25th percentile), Q3 is the third quartile (75th percentile), IQR is the interquartile range (Q3-Q1), K is a constant multiplier that determines the range beyond which data points are considered potential outliers, in our case K = 1.5.'''
-
-
 st.title('Outliers Analysis')
 uploaded_file = st.file_uploader(label= '', type=["csv","xlsx"])
 if not uploaded_file:
@@ -212,7 +204,7 @@ if uploaded_file:
         percentage = round((service_rows/original_rows)*100,2)
         formatted_original_rows = "{:,.0f}".format(original_rows)
         formatted_service_rows = "{:,.0f}".format(service_rows)
-        text = f"Using {formatted_service_rows} rows out of {formatted_original_rows} rows, which is {percentage}% of total dataset."
+        text = f"Using {formatted_service_rows} rows out of {formatted_original_rows} rows, which is {percentage}% of total dataset rows."
         st.markdown(text)
     else:
         service_rows = original_rows
@@ -232,9 +224,22 @@ if uploaded_file:
     check_box2 = st.checkbox(label="Explain interquartile range (IQR) method")
     if check_box2:
         st.subheader('IQR outlier finding method explanation')
+        explanation = '''In a box plot, the upper and lower fences are used to identify potential outliers in the data.
+            These fences are calculated based on the interquartile range (IQR), which is a measure of statistical data scatter.
+            The formula for calculating the upper and lower fences is as follows:
+            Lower Fence: Q1 - K x IQR
+            Upper Fence: Q3 + K x IQR
+            Here: Q1 is the first quartile (25th percentile), Q3 is the third quartile (75th percentile), IQR is the interquartile range (Q3-Q1), K is a constant multiplier that determines the range beyond which data points are considered potential outliers, in our case K = 1.5.'''
         lines = explanation.split('\n')
         for line in lines:
             st.write(line)
+
+    if st.checkbox("Explain percentile-based method"):
+        st.subheader('Percentile-based method explanation')
+        explanation = '''A percentile-based approach identifies outliers by considering data points that fall within a specific range of percentiles.
+        Percentiles divide the data into 100 equal parts, so the 5th percentile, for example, represents the value below which 5% of the data falls.
+        To find outliers using this method, you can define a range (e.g., the top 5% and bottom 5% of the data) and identify any data points that fall outside this range as potential outliers.'''
+        st.write(explanation)
 
     st.title("Plots")
     #Use only the numeric columns
