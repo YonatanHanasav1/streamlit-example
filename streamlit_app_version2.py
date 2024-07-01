@@ -7,7 +7,7 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 import numpy as np
 
-def calculate_IQR(data,col,event_type_column):
+def calculate_IQR(data,col):
     IQR_data = data.copy()
     column = col
     # Calculate the quartiles and fences
@@ -29,47 +29,13 @@ def calculate_percentiles_method(data,col,top_percentile,bottom_percentile):
 
     return median,lower_fence,upper_fence
 
-
-    data = data.copy()
-    st.markdown(f'You are using {chosen_method} method to define outliers')
-
-    for type in data[event_type_column].unique():
-        data_copy = data.copy()
-        data_copy = data[data[event_type_column] == type]
-
-        if chosen_method == 'Interquartile Range':
-            median,lower_fence,upper_fence = calculate_IQR(data_copy,column,event_type_column)
-        else:
-            median = calculate_IQR(data_copy,column,event_type_column)[0]
-            median,lower_fence,upper_fence = calculate_percentiles_method(data_copy,column,top_percentile,bottom_percentile)
-
-        # Display fences and median in a table
-        fences_median_df = pd.DataFrame({
-            'Metric': ['Upper Fence', 'Lower Fence', 'Median'],
-            'Value': [upper_fence, lower_fence, median]})
-        fences_median_df['Value'] = fences_median_df['Value']
-        fences_median_df['Value'] = fences_median_df['Value'].map(lambda x: f"{x:,.0f}")
-        st.write(f"Fences values of {type} {column}")
-        st.table(fences_median_df)
-
-        # Identify and display highest and lowest 5 outliers
-        highest_5_outliers = data_copy[[column,investigation_id,event_type_column]].sort_values(by=column, ascending=False).head(5)
-        col1= st.columns(1)[0]
-
-        with col1:
-            title_text = f"Highest 5 outliers for {type} {column}:"
-            st.write(title_text)
-            format_and_display_table(highest_5_outliers, column, investigation_id, event_type_column)
-
-def boxplotter(column, data, chosen_method):
+def boxplotter(column, data,investigation_id):
     st.subheader(f"Box Plot of {column}")
     st.write("Data points showing on plot are the values outside of fences")
     
     # Create the box plot for the original dataset
-    if chosen_method == 'Interquartile Range':
-        plot1 = px.box(data_frame=data, x=column, y='event_type', orientation='h')
-    else:
-        plot1 = px.box(data_frame=data, x=column, y='event_type', orientation='h')
+    plot1 = px.box(data_frame=data, x=column, y='event_type', orientation='h', hover_data=[investigation_id])
+    
     st.plotly_chart(plot1, theme="streamlit", use_container_width=True)
 
 def histogram(column, data, chosen_method, event_type_column):
@@ -83,9 +49,9 @@ def histogram(column, data, chosen_method, event_type_column):
         data_copy = data[data[event_type_column] == event_type]
 
         if chosen_method == 'Interquartile Range':
-            median, lower_fence, upper_fence = calculate_IQR(data_copy, column, event_type_column)
+            median, lower_fence, upper_fence = calculate_IQR(data_copy, column)
         else:
-            median = calculate_IQR(data_copy, column, event_type_column)[0]
+            median = calculate_IQR(data_copy, column)[0]
             median, lower_fence, upper_fence = calculate_percentiles_method(data_copy, column, top_percentile, bottom_percentile)
 
         histogram_data = data_copy
@@ -137,9 +103,9 @@ def bar_chart_sum_vs_non_outliers(data, col, event_type_column):
         bar_chart_data = data_copy
 
         if chosen_method == 'Interquartile Range':
-                median,lower_fence,upper_fence = calculate_IQR(data,column,event_type_column)
+                median,lower_fence,upper_fence = calculate_IQR(data,column)
         else:
-            median = calculate_IQR(data,column,event_type_column)[0]
+            median = calculate_IQR(data,column)[0]
             median,lower_fence,upper_fence = calculate_percentiles_method(data,column,top_percentile,bottom_percentile)
 
         # Sum of all values
@@ -248,7 +214,7 @@ if uploaded_file:
     
     if plot_selection:
         for col in plot_selection:
-            boxplotter(col, data, chosen_method)
+            boxplotter(col, data, investigation_id)
             histogram(col, data, chosen_method, event_type_column)
             bar_chart_sum_vs_non_outliers(data, col, event_type_column)
 
@@ -267,7 +233,7 @@ if uploaded_file:
             df_copy = data.copy() #Used for filtering information section
             column = col
             if chosen_method == 'Interquartile Range':
-                median,lower_fence,upper_fence = calculate_IQR(df_copy,column,event_type_column)
+                median,lower_fence,upper_fence = calculate_IQR(df_copy,column)
             if chosen_method == 'Percentile Based':
                 median,lower_fence,upper_fence = calculate_percentiles_method(df_copy,column,top_percentile,bottom_percentile)
 
@@ -326,7 +292,7 @@ if uploaded_file:
                 column = col
                 filtered_df_copy = data.copy()
                 if chosen_method == 'Interquartile Range':
-                    median,lower_fence,upper_fence = calculate_IQR(filtered_df_copy,column,event_type_column)
+                    median,lower_fence,upper_fence = calculate_IQR(filtered_df_copy,column)
                 if chosen_method == 'Percentile Based':
                     median,lower_fence,upper_fence = calculate_percentiles_method(filtered_df_copy,column,top_percentile,bottom_percentile)
 
@@ -360,5 +326,5 @@ if uploaded_file:
             see_my_changes_box = st.checkbox(label='Select this box to see how the data changed',key = f'{col} see_my_changes_box')
             if see_my_changes_box:
                 for col in filter_columns:
-                    boxplotter(col, filtered_df, chosen_method)
+                    boxplotter(col, filtered_df, investigation_id)
                     histogram(col, filtered_df, chosen_method, event_type_column)
