@@ -1,11 +1,8 @@
 import streamlit as st
-import seaborn as sns 
 import pandas as pd
-import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
-import numpy as np
 
 def calculate_IQR(data,col):
     IQR_data = data.copy()
@@ -135,7 +132,7 @@ def bar_chart_sum_vs_non_outliers(data, col, event_type_column):
 
         units = 'hours' if 'duration' in column else 'dollars'
         st.markdown(f'Outliers values adding up {formatted_difference_of_change} {units} which is {percentage_of_change}% out of {column} sum of values for {event_type} event type.')
-        
+
 st.title('Outliers Analysis')
 uploaded_file = st.file_uploader(label= '', type=["csv","xlsx"])
 if not uploaded_file:
