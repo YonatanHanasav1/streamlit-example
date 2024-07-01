@@ -139,10 +139,12 @@ if not uploaded_file:
     st.write('To start analysis please upload data file')
 
 if uploaded_file:
+    df = pd.read_csv(uploaded_file, low_memory=False)
+    st.write(f"Shape of the dataset: {df.shape}")
+    st.write(f"Size of the dataset: {uploaded_file.size / (1024 * 1024):.2f} MB")
+    
     opening = ('The main purpose of this application is to find outliers within the dataset and filter them as needed.')
     st.write(opening)
-
-    df = pd.read_csv(uploaded_file, low_memory=False)
     original_rows = df.shape[0]
     full_df = df.copy() # Needed for event category stacked graph
     list_of_columns = df.columns.to_list()
