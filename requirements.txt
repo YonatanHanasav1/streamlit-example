@@ -1,7 +1,3 @@
 streamlit
-altair
 pandas
-numpy
-matplotlib==3.5.1
-seaborn==0.11.2
 plotly==5.18.0
