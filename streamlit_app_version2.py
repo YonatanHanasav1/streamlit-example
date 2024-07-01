@@ -97,51 +97,45 @@ def histogram(column, data, chosen_method, event_type_column):
 def bar_chart_sum_vs_non_outliers(data, col, event_type_column):
     column = col
 
-    for type in data[event_type_column].unique():
-        data_copy = data.copy()
-        data_copy = data[data[event_type_column] == type]
-        bar_chart_data = data_copy
+    for event_type in data[event_type_column].unique():
+        data_copy = data[data[event_type_column] == event_type].copy()
 
-        if chosen_method == 'Interquartile Range':
-                median,lower_fence,upper_fence = calculate_IQR(data,column)
-        else:
-            median = calculate_IQR(data,column)[0]
-            median,lower_fence,upper_fence = calculate_percentiles_method(data,column,top_percentile,bottom_percentile)
+        # Calculate outliers based on Interquartile Range method
+        median, lower_fence, upper_fence = calculate_IQR(data_copy, column)
 
         # Sum of all values
-        sum_all_values = bar_chart_data[column].sum()
-        formatted_sum_all_values = "{:,.0f}".format(sum_all_values)
+        sum_all_values = data_copy[column].sum()
 
         # Sum of non-outlier values
-        non_outliers = bar_chart_data[(bar_chart_data[column] >= lower_fence) & (bar_chart_data[column] <= upper_fence)]
+        non_outliers = data_copy[(data_copy[column] >= lower_fence) & (data_copy[column] <= upper_fence)]
         sum_non_outlier_values = non_outliers[column].sum()
-        formatted_sum_non_outlier_values = "{:,.0f}".format(sum_non_outlier_values)
 
-        # Prepare filtered_data for Plotly
+        # Format numbers for display
+        formatted_sum_all = '{:,.0f}'.format(sum_all_values)
+        formatted_sum_non_outlier = '{:,.0f}'.format(sum_non_outlier_values)
+
+        # Prepare data for Plotly
         bar_chart_data = {
-            'Category': [f'Sum of all {type} values', f'Sum of non-outlier {type} values'],
-            str(column): [formatted_sum_all_values, formatted_sum_non_outlier_values]}
+            'Category': [f'Sum of all {event_type} values', f'Sum of non-outlier {event_type} values'],
+            column: [formatted_sum_all, formatted_sum_non_outlier]
+        }
 
         # Create a DataFrame
         df = pd.DataFrame(bar_chart_data)
 
-        st.subheader(f'Sum of Values vs. Non-Outlier Values: {type} {column}')
-
-        # Create a bar chart
-        fig = px.bar(df, x='Category', y=column, color='Category', text_auto=True)
-
-        # Display the chart using Streamlit
+        # Display in Streamlit
+        st.subheader(f'Sum of Values vs. Non-Outlier Values: {event_type} {column}')
+        fig = px.bar(df, x='Category', y=column, color='Category', text=column)
         st.plotly_chart(fig)
 
-        percentage_of_change = round(100*(1-(sum_non_outlier_values / sum_all_values)),2)
-        difference_of_change = round(sum_all_values - sum_non_outlier_values,2)
-        formatted_difference_of_change = "{:,.0f}".format(difference_of_change)
-        if 'duration' in column:
-            units = 'hours'
-        else:
-            units = 'dollars'
-        st.markdown(f'Outliers values adding up {formatted_difference_of_change} {units} which is {percentage_of_change}% out of {column} sum of values for {type} event type.')
+        # Calculate and display percentage and difference
+        percentage_of_change = round(100 * (1 - (sum_non_outlier_values / sum_all_values)), 2)
+        difference_of_change = round(sum_all_values - sum_non_outlier_values, 2)
+        formatted_difference_of_change = '{:,.0f}'.format(difference_of_change)
 
+        units = 'hours' if 'duration' in column else 'dollars'
+        st.markdown(f'Outliers values adding up {formatted_difference_of_change} {units} which is {percentage_of_change}% out of {column} sum of values for {event_type} event type.')
+        
 st.title('Outliers Analysis')
 uploaded_file = st.file_uploader(label= '', type=["csv","xlsx"])
 if not uploaded_file:
