@@ -88,8 +88,19 @@ def summary_table(df):
     # Convert year_month to string for readability
     percentage_summary['year_month'] = percentage_summary['year_month'].astype(str)
 
+    # Calculate the average percentage of each cost type over the entire timeframe
+    avg_labor_cost_pct = percentage_summary['total_labor_cost_pct'].mean()
+    avg_travel_cost_pct = percentage_summary['travel_cost_total_pct'].mean()
+    avg_part_cost_pct = percentage_summary['total_part_cost_pct'].mean()
+
     # Display the DataFrame with percentages
     st.write(percentage_summary)
+
+    # Display the average percentages
+    st.write("Average Percentages Over the Entire Timeframe:")
+    st.write(f"Labor Cost: {avg_labor_cost_pct:.2f}%")
+    st.write(f"Travel Cost: {avg_travel_cost_pct:.2f}%")
+    st.write(f"Part Cost: {avg_part_cost_pct:.2f}%")
 
 def stacked_yearly_plot(df):
     # Convert visit_date to datetime
