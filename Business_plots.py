@@ -32,19 +32,19 @@ def stacked_monthly_plot(df):
     # Convert year_month to string for plotting
     monthly_summary['year_month'] = monthly_summary['year_month'].astype(str)
 
-    # Create the bar plot using Plotly with specified colors
+    # Create the bar plot using Plotly
     fig = px.bar(
         monthly_summary,
         x='year_month',
         y=['total_labor_cost', 'travel_cost_total', 'total_part_cost'],
         labels={'value': 'Cost (USD)', 'year_month': 'Year-Month'},
         title='Monthly Costs Breakdown',
-        text_auto=True,
         color_discrete_map={
             'total_labor_cost': 'blue',
             'travel_cost_total': 'orange',
             'total_part_cost': 'green'
-        }
+        },
+        text_auto=False  # Disable default text
     )
 
     # Customize the layout (title centered and larger, enforce a size)
@@ -54,13 +54,22 @@ def stacked_monthly_plot(df):
             'x': 0.5,
             'xanchor': 'center',
             'yanchor': 'top',
-            'font': {'size': 24}  
+            'font': {'size': 24}
         },
         xaxis_title='Year-Month',
         yaxis_title='Cost (USD)',
         legend_title='Cost Type',
-        barmode='stack'
+        barmode='stack',
+        bargap=0.15
     )
+
+    # Add custom text labels to the bars
+    for trace in fig.data:
+        trace.text = [f"${int(y/1000)}k" for y in trace.y]
+        trace.textposition = 'inside'
+
+    # Rotate the text labels inside the bars to be horizontal and increase font size
+    fig.update_traces(textangle=0, textfont=dict(size=100))
 
     # Display the plot in Streamlit with full container width
     st.plotly_chart(fig, use_container_width=True)
@@ -155,7 +164,7 @@ def stacked_yearly_plot(df):
         color='cost_type',
         title='Yearly Costs Breakdown with Percentages',
         labels={'cost_type': 'Cost Type', 'cost': 'Cost (USD)'},
-        text_auto='.2s',  # Display values with two significant digits
+        text_auto='$,.2s',  # Display values with two significant digits and dollar sign
         color_discrete_map={
         'total_labor_cost': 'blue',
         'travel_cost_total': 'orange',
