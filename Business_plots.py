@@ -249,11 +249,10 @@ if not uploaded_file:
 
 if uploaded_file:
     df = pd.read_csv(uploaded_file, low_memory=False)
+    st.write(f"Shape of the dataset: {df.shape}")
     opening = ('The main purpose of this application is to create plots for better understanding of customer business model')
     st.write(opening)
 
-    st.write(f"Shape of the dataset: {df.shape}")
-    st.write(f"Size of the dataset: {uploaded_file.size / (1024 * 1024):.2f} MB")
     use_service_only_check_box = st.checkbox(label="Select this box to use service events only")
     if use_service_only_check_box:
         df = use_service_only(df)
