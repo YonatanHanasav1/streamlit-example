@@ -188,6 +188,18 @@ def check_missing_months(df):
     # Initialize a dictionary to store missing months for each year
     missing_months_per_year = {}
 
+    # Find the minimum and maximum dates
+    min_date = df['visit_date'].min()
+    max_date = df['visit_date'].max()
+
+    # Calculate the difference in months and years
+    total_months = (max_date.year - min_date.year) * 12 + (max_date.month - min_date.month)
+    years_covered = total_months // 12
+    months_covered = total_months % 12
+
+    # Display the total duration covered in years and months
+    st.write(f"The dataset covers a period of {years_covered} years and {months_covered} months.")
+
     for year in years:
         # Get the months present in the data for the current year
         months_present = set(df[df['year'] == year]['month'].unique())
