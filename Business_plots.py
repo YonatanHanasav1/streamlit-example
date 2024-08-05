@@ -6,6 +6,15 @@ import streamlit as st
 import plotly.graph_objects as go
 import plotly.express as px
 
+def use_service_only(df):
+    original_rows = df.shape[0]
+    df = df[df['event_category'] == 'service']
+    service_rows = df.shape[0]
+    percentage = round((service_rows/original_rows)*100,2)
+    text = f"Using {service_rows} rows out of {original_rows} rows, which is {percentage}% of total dataset rows."
+    st.markdown(text)
+    return df
+
 def stacked_monthly_plot(df):
     # Convert visit_date to datetime
     df['visit_date'] = pd.to_datetime(df['visit_date'])
@@ -93,14 +102,14 @@ def summary_table(df):
     avg_travel_cost_pct = percentage_summary['travel_cost_total_pct'].mean()
     avg_part_cost_pct = percentage_summary['total_part_cost_pct'].mean()
 
-    # Display the DataFrame with percentages
-    st.write(percentage_summary)
-
     # Display the average percentages
     st.write("Average Percentages Over the Entire Timeframe:")
-    st.write(f"Labor Cost: {avg_labor_cost_pct:.2f}%")
-    st.write(f"Travel Cost: {avg_travel_cost_pct:.2f}%")
-    st.write(f"Part Cost: {avg_part_cost_pct:.2f}%")
+    st.write(f"Labor Cost: {avg_labor_cost_pct:.2f}% out of total cost")
+    st.write(f"Travel Cost: {avg_travel_cost_pct:.2f}% out of total cost")
+    st.write(f"Part Cost: {avg_part_cost_pct:.2f}% out of total cost")
+
+    # Display the DataFrame with percentages
+    st.write(percentage_summary)
 
 def stacked_yearly_plot(df):
     # Convert visit_date to datetime
@@ -236,8 +245,11 @@ if uploaded_file:
 
     st.write(f"Shape of the dataset: {df.shape}")
     st.write(f"Size of the dataset: {uploaded_file.size / (1024 * 1024):.2f} MB")
-    scheck_missing_months_check_box = st.checkbox(label="Display missing months information")
-    if scheck_missing_months_check_box:
+    use_service_only_check_box = st.checkbox(label="Select this box to use service events only")
+    if use_service_only_check_box:
+        df = use_service_only(df)
+    check_missing_months_check_box = st.checkbox(label="Display missing months information")
+    if check_missing_months_check_box:
         check_missing_months(df)
     stacked_monthly_plot_check_box = st.checkbox(label="Display monthly costs breakdown plot")
     if stacked_monthly_plot_check_box:
