@@ -212,6 +212,14 @@ def stacked_yearly_plot(df):
         xaxis_title='Year',
         yaxis_title='Cost (USD)',
         legend_title='Cost Type',
+        legend=dict(
+            orientation='h',
+            yanchor='top',
+            y=-0.2,  # Adjust this value to move the legend further down
+            x=0.5,
+            xanchor='center',
+            title_side='top center'  # Position the title at the top
+        ),
         xaxis=dict(
             tickmode='linear',
             dtick=1,  # Show ticks once per year
