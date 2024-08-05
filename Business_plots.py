@@ -15,6 +15,15 @@ def use_service_only(df):
     st.markdown(text)
     return df
 
+def format_label(value):
+    """Format the label based on its magnitude."""
+    if value >= 1_000_000:
+        return f"${value / 1_000_000:.1f}M"
+    elif value >= 1_000:
+        return f"${value / 1_000:.0f}K"
+    else:
+        return f"${value:.0f}"
+
 def stacked_monthly_plot(df):
     # Convert visit_date to datetime
     df['visit_date'] = pd.to_datetime(df['visit_date'])
@@ -58,18 +67,38 @@ def stacked_monthly_plot(df):
         },
         xaxis_title='Year-Month',
         yaxis_title='Cost (USD)',
-        legend_title='Cost Type',
         barmode='stack',
-        bargap=0.15
+        bargap=0.15,
+        legend_title='Cost Type',
+        legend=dict(
+            orientation='h',
+            yanchor='top',
+            y=-0.2,  # Adjust this value to move the legend further down
+            x=0.5,
+            xanchor='center',
+            title_side='top center'  # Position the title at the top
+        ),
+        xaxis=dict(
+            tickmode='linear',
+            dtick='M1',  # Show ticks every month
+            tickangle=-45  # Tilt ticks counterclockwise
+        )
     )
 
     # Add custom text labels to the bars
     for trace in fig.data:
-        trace.text = [f"${int(y/1000)}k" for y in trace.y]
+        trace.text = [format_label(y) for y in trace.y]
         trace.textposition = 'inside'
 
     # Rotate the text labels inside the bars to be horizontal and increase font size
-    fig.update_traces(textangle=0, textfont=dict(size=100))
+    fig.update_traces(textangle=0, textfont=dict(size=16))
+
+    # Adjust text label alignment within the bars
+    fig.update_traces(
+        texttemplate='%{text}',
+        textposition='inside',
+        insidetextanchor='middle'  # Center text vertically inside the bar
+    )
 
     # Display the plot in Streamlit with full container width
     st.plotly_chart(fig, use_container_width=True)
@@ -162,32 +191,51 @@ def stacked_yearly_plot(df):
         x='year',
         y='cost',
         color='cost_type',
-        title='Yearly Costs Breakdown with Percentages',
+        title='Yearly Costs Breakdown',
         labels={'cost_type': 'Cost Type', 'cost': 'Cost (USD)'},
-        text_auto='$,.2s',  # Display values with two significant digits and dollar sign
         color_discrete_map={
-        'total_labor_cost': 'blue',
-        'travel_cost_total': 'orange',
-        'total_part_cost': 'green'
+            'total_labor_cost': 'blue',
+            'travel_cost_total': 'orange',
+            'total_part_cost': 'green'
         }
     )
 
     # Update layout for better appearance
     fig.update_layout(
-                title={
+        title={
             'text': 'Yearly Costs Breakdown',
             'x': 0.5,
             'xanchor': 'center',
             'yanchor': 'top',
-            'font': {'size': 24}  
+            'font': {'size': 24}
         },
         xaxis_title='Year',
         yaxis_title='Cost (USD)',
-        legend_title='Cost Type'
+        legend_title='Cost Type',
+        xaxis=dict(
+            tickmode='linear',
+            dtick=1,  # Show ticks once per year
+            tickangle=-45  # Tilt ticks counterclockwise
+        )
+    )
+
+    # Add custom text labels to the bars
+    for trace in fig.data:
+        trace.text = [format_label(y) for y in trace.y]
+        trace.textposition = 'inside'
+
+    # Rotate the text labels inside the bars to be horizontal and increase font size
+    fig.update_traces(textangle=0, textfont=dict(size=16))
+
+    # Adjust text label alignment within the bars
+    fig.update_traces(
+        texttemplate='%{text}',
+        textposition='inside',
+        insidetextanchor='middle'  # Center text vertically inside the bar
     )
 
     # Show the plot using Streamlit
-    st.plotly_chart(fig)
+    st.plotly_chart(fig, use_container_width=True)
 
 def check_missing_months(df):
     # Convert visit_date to datetime if not already converted
