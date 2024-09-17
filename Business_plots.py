@@ -298,6 +298,34 @@ def check_missing_months(df):
     
     return missing_months_per_year
 
+def yearly_cost_table(df):
+    # Convert visit_date to datetime
+    df['visit_date'] = pd.to_datetime(df['visit_date'])
+
+    # Extract year from visit_date
+    df['year'] = df['visit_date'].dt.year
+
+    # Summarize the data by year
+    yearly_summary = df.groupby('year').agg({
+        'total_labor_cost': 'sum',
+        'travel_cost_total': 'sum',
+        'total_part_cost': 'sum'
+    }).reset_index()
+
+    # Calculate the total cost for each year
+    yearly_summary['total_cost'] = (
+        yearly_summary['total_labor_cost'] +
+        yearly_summary['travel_cost_total'] +
+        yearly_summary['total_part_cost']
+    )
+
+    total_cost = round(yearly_summary['total_cost'].sum(), 0)
+    formatted_total_cost = "{:,.0f}".format(total_cost)
+    # Display the yearly summary DataFrame in Streamlit
+
+    st.write(yearly_summary)
+    st.write(f'The total cost is ${formatted_total_cost}')
+
 st.title('Business Plots')
 uploaded_file = st.file_uploader(label= '', type=["csv","xlsx"])
 if not uploaded_file:
@@ -315,6 +343,9 @@ if uploaded_file:
     check_missing_months_check_box = st.checkbox(label="Display missing months information")
     if check_missing_months_check_box:
         check_missing_months(df)
+    display_yearly_costs_check_box = st.checkbox(label="Display yearly total cost breakdown")
+    if display_yearly_costs_check_box:
+        yearly_cost_table(df)
     stacked_monthly_plot_check_box = st.checkbox(label="Display monthly costs breakdown plot")
     if stacked_monthly_plot_check_box:
         stacked_monthly_plot(df)
@@ -324,3 +355,4 @@ if uploaded_file:
     stacked_yearly_plot_check_box = st.checkbox(label="Display yearly costs breakdown plot")
     if stacked_yearly_plot_check_box:
         stacked_yearly_plot(df)
+
