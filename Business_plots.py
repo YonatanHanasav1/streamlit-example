@@ -141,11 +141,44 @@ def summary_table(df):
     avg_part_cost_pct = percentage_summary['total_part_cost_pct'].mean()
 
     # Display the average percentages
-    st.write("Average Percentages Over the Entire Timeframe:")
-    st.write(f"Labor Cost: {avg_labor_cost_pct:.2f}% out of total cost")
-    st.write(f"Travel Cost: {avg_travel_cost_pct:.2f}% out of total cost")
-    st.write(f"Part Cost: {avg_part_cost_pct:.2f}% out of total cost")
+    # st.write("Average Percentages Over the Entire Timeframe:")
+    # st.write(f"Labor Cost: {avg_labor_cost_pct:.2f}% out of total cost")
+    # st.write(f"Travel Cost: {avg_travel_cost_pct:.2f}% out of total cost")
+    # st.write(f"Part Cost: {avg_part_cost_pct:.2f}% out of total cost")
 
+    # Data for the pie chart
+    labels = ['Labor Cost', 'Travel Cost', 'Part Cost']
+    sizes = [avg_labor_cost_pct, avg_travel_cost_pct, avg_part_cost_pct]
+    colors = ['#008000','#0000FF', '#FFA500']  # Blue, Orange, Green
+
+
+    # Create the pie chart using Plotly
+    fig = px.pie(
+        names=labels,
+        values=sizes,
+        title="Average Cost Distribution Over the Entire Timeframe",
+        hole=0.3,  # Optional: for a donut-style chart
+        color_discrete_sequence=colors
+
+    )
+
+    # Customize the chart layout
+    fig.update_layout(title=
+    {
+            'text': 'Monthly Costs Breakdown',
+            'x': 0.45,
+            'xanchor': 'center',
+            'yanchor': 'top',
+            'font': {'size': 24}
+    })
+    fig.update_traces(textinfo='label+percent', texttemplate='%{label}: %{percent:.2%}')
+    fig.update_traces(textinfo='percent+label')
+    fig.update_layout(showlegend=True)
+
+    # Display the pie chart in Streamlit
+    st.plotly_chart(fig)
+
+    st.write("Average Cost Percentages By Each Month:")
     # Display the DataFrame with percentages
     st.write(percentage_summary)
 
@@ -319,10 +352,15 @@ def yearly_cost_table(df):
         yearly_summary['total_part_cost']
     )
 
-    total_cost = round(yearly_summary['total_cost'].sum(), 0)
-    formatted_total_cost = "{:,.0f}".format(total_cost)
-    # Display the yearly summary DataFrame in Streamlit
+    # Round all columns with costs to 0 decimal places
+    yearly_summary[['total_labor_cost', 'travel_cost_total', 'total_part_cost', 'total_cost']] = yearly_summary[
+        ['total_labor_cost', 'travel_cost_total', 'total_part_cost', 'total_cost']
+    ].round(0)
 
+    total_cost = yearly_summary['total_cost'].sum()
+    formatted_total_cost = "{:,.0f}".format(total_cost)
+    
+    # Display the yearly summary DataFrame in Streamlit
     st.write(yearly_summary)
     st.write(f'The total cost is ${formatted_total_cost}')
 
@@ -340,10 +378,10 @@ if uploaded_file:
     use_service_only_check_box = st.checkbox(label="Select this box to use service events only")
     if use_service_only_check_box:
         df = use_service_only(df)
-    check_missing_months_check_box = st.checkbox(label="Display missing months information")
+    check_missing_months_check_box = st.checkbox(label="Check for missing months")
     if check_missing_months_check_box:
         check_missing_months(df)
-    display_yearly_costs_check_box = st.checkbox(label="Display yearly total cost breakdown")
+    display_yearly_costs_check_box = st.checkbox(label="Display yearly total cost breakdown table")
     if display_yearly_costs_check_box:
         yearly_cost_table(df)
     stacked_monthly_plot_check_box = st.checkbox(label="Display monthly costs breakdown plot")
