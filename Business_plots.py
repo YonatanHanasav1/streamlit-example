@@ -171,6 +171,16 @@ def summary_table(df):
             'yanchor': 'top',
             'font': {'size': 24}
     })
+    fig.update_layout(
+        legend_title='Cost Type',
+        legend=dict(
+            orientation='h',
+            yanchor='top',
+            y=-0.2,  # Adjust this value to move the legend further down
+            x=0.5,
+            xanchor='center',
+            title_side='top center'  # Position the title at the top
+        ))
     fig.update_traces(textinfo='label+percent', texttemplate='%{label}: %{percent:.2%}')
     fig.update_traces(textinfo='percent+label')
     fig.update_layout(showlegend=True)
@@ -385,7 +395,7 @@ if uploaded_file:
     stacked_monthly_plot_check_box = st.checkbox(label="Display monthly costs breakdown plot")
     if stacked_monthly_plot_check_box:
         stacked_monthly_plot(df)
-    summary_table_check_box = st.checkbox(label="Display monthly costs summary percentage table")
+    summary_table_check_box = st.checkbox(label="Display monthly costs percentage breakdown")
     if summary_table_check_box:
         summary_table(df)
     stacked_yearly_plot_check_box = st.checkbox(label="Display yearly costs breakdown plot")
