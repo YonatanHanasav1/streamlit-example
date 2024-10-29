@@ -301,11 +301,9 @@ def check_missing_months(df):
 
     # Calculate the difference in months and years
     total_months = (max_date.year - min_date.year) * 12 + (max_date.month - min_date.month)
-    years_covered = total_months // 12
-    months_covered = total_months % 12
 
     # Display the total duration covered in years and months
-    st.write(f"The dataset covers a period of {years_covered} years and {months_covered} months.")
+    st.write(f"The dataset covers a period of {total_months} months:")
 
     for year in years:
         # Get the months present in the data for the current year
